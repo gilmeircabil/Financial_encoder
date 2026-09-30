@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { NAV_SECTIONS } from '../../navigation'
 import { Icon } from '../ui/Icon'
+import { AppLogo } from '../ui/AppLogo'
 import { useSettings } from '../../contexts/SettingsContext'
 
 function Sidebar(): React.JSX.Element {
@@ -11,7 +12,7 @@ function Sidebar(): React.JSX.Element {
     <nav className="sidebar" aria-label="Main navigation">
       <div className="sidebar__brand">
         <div className="sidebar__logo" aria-hidden="true">
-          <Icon name="capital" size={20} />
+          <AppLogo size={22} />
         </div>
         <div className="sidebar__brand-text">
           <span className="sidebar__name">{appName}</span>

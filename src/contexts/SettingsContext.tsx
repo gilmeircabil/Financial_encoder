@@ -18,10 +18,8 @@ const SettingsContext = createContext<SettingsContextValue>({
   setSetting: async () => undefined,
 })
 
-function applyTheme(theme: AppSettings['theme']): void {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const effective = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
-  document.documentElement.dataset.theme = effective
+function applyTheme(): void {
+  document.documentElement.dataset.theme = 'bw'
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }): React.JSX.Element {
@@ -31,6 +29,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
 
   useEffect(() => {
     let cancelled = false
+    applyTheme()
     api.settings
       .getAll()
       .then((loaded) => {
@@ -38,7 +37,6 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
           return
         }
         setSettings(loaded)
-        applyTheme(loaded.theme)
       })
       .catch((err) => {
         if (cancelled) {
@@ -58,23 +56,9 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
     }
   }, [])
 
-  // Follow the OS theme while the setting is "system".
-  useEffect(() => {
-    if (!settings || settings.theme !== 'system') {
-      return
-    }
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = (): void => applyTheme('system')
-    media.addEventListener('change', onChange)
-    return () => media.removeEventListener('change', onChange)
-  }, [settings])
-
   const setSetting = useCallback(async (key: keyof AppSettings, value: string): Promise<void> => {
     const updated = await api.settings.set(key, value)
     setSettings(updated)
-    if (key === 'theme') {
-      applyTheme(updated.theme)
-    }
   }, [])
 
   const value = useMemo(

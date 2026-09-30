@@ -1,59 +1,46 @@
 import SettingsPage from './SettingsPage'
 import SettingsSection from '../../components/ui/SettingsSection'
-import { Icon } from '../../components/ui/Icon'
-import { useSettings } from '../../contexts/SettingsContext'
-import { useSettingSave } from '../../hooks/useSettingSave'
+import { AppLogo } from '../../components/ui/AppLogo'
 
 function SettingsAppearance(): React.JSX.Element | null {
-  const { settings } = useSettings()
-  const { saving, savedKey, notice, save, dismissNotice } = useSettingSave()
-
-  if (!settings) {
-    return null
+  const handleLaunchIntro = (): void => {
+    localStorage.removeItem('fe_intro_dismissed')
+    window.location.reload()
   }
 
   return (
-    <SettingsPage description="Choose a look for the app.">
-      {notice ? (
-        <div role="status" className="notice notice--error">
-          <span>{notice.text}</span>
-          <button type="button" className="notice__close" onClick={dismissNotice} aria-label="Dismiss">
-            ×
-          </button>
-        </div>
-      ) : null}
-
+    <SettingsPage description="System aesthetic and visual configuration.">
       <div className="settings-grid">
-        <SettingsSection id="s-appearance" icon="palette" title="Appearance" description="Choose a look for the app.">
+        <SettingsSection id="s-appearance" icon="palette" title="System Aesthetic" description="Minimal black and white design system.">
           <div className="field">
-            <span className="field__label" id="setting-theme-label">Theme</span>
-            <div className="field__row" role="group" aria-labelledby="setting-theme-label">
-              {([
-                { value: 'light' as const, label: 'Light', icon: 'sun' as const },
-                { value: 'dark' as const, label: 'Dark', icon: 'moon' as const },
-                { value: 'system' as const, label: 'System', icon: 'monitor' as const },
-              ]).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`btn btn--segment settings-theme-btn${settings.theme === opt.value ? ' btn--segment-active' : ''}`}
-                  role="radio"
-                  aria-checked={settings.theme === opt.value}
-                  onClick={() => {
-                    if (opt.value !== settings.theme) {
-                      void save('theme', opt.value)
-                    }
-                  }}
-                  disabled={saving === 'theme'}
-                >
-                  <Icon name={opt.icon} size={15} />
-                  <span>{opt.label}</span>
-                </button>
-              ))}
+            <span className="field__label">Theme</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '8px', background: 'var(--bg-surface-alt)', border: '1px solid var(--border)' }}>
+              <AppLogo size={36} withBackground />
+              <div>
+                <p style={{ fontWeight: 700, margin: '0 0 4px', fontSize: '15px' }}>Black &amp; White Minimal Edition</p>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                  A clean, high-contrast monochrome design system without distracting light/dark modes or hover animations.
+                </p>
+              </div>
             </div>
-            <div className="field__status field__status--row" aria-live="polite">
-              {saving === 'theme' ? <span className="spinner spinner--xs" aria-label="Saving" /> : null}
-              {savedKey === 'theme' ? <span className="field__status-saved">Saved</span> : null}
+          </div>
+
+          <div className="field" style={{ marginTop: '20px' }}>
+            <span className="field__label">Welcome Experience</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '8px', background: 'var(--bg-surface-alt)', border: '1px solid var(--border)' }}>
+              <div>
+                <p style={{ fontWeight: 600, margin: '0 0 2px', fontSize: '14px' }}>System Intro</p>
+                <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                  Replay the opening introduction screen.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={handleLaunchIntro}
+              >
+                Replay Intro
+              </button>
             </div>
           </div>
         </SettingsSection>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useSettings } from '../../contexts/SettingsContext'
 import { formatDate } from '../../utils/dates'
 import { Icon } from '../ui/Icon'
+import { AppLogo } from '../ui/AppLogo'
 
 interface TopBarProps {
   onOpenAddTransaction?: () => void
@@ -10,7 +11,7 @@ interface TopBarProps {
 }
 
 function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.JSX.Element {
-  const { settings, setSetting } = useSettings()
+  const { settings } = useSettings()
   const navigate = useNavigate()
   const [now, setNow] = useState(() => new Date())
   const [query, setQuery] = useState('')
@@ -22,12 +23,6 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
 
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
   const dateLabel = formatDate(now, dateFormat)
-  const isDark = settings?.theme === 'dark'
-
-  const toggleTheme = (): void => {
-    const nextTheme = isDark ? 'light' : 'dark'
-    void setSetting('theme', nextTheme)
-  }
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
@@ -41,7 +36,7 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
       <div className="topbar__left">
         <Link to="/dashboard" className="topbar__brand-link" title="Go to Dashboard">
           <div className="topbar__logo" aria-hidden="true">
-            <Icon name="capital" size={16} />
+            <AppLogo size={18} />
           </div>
           <span className="topbar__app-name">{settings?.appName ?? 'Financial Encoder'}</span>
         </Link>
@@ -92,16 +87,6 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
           <Icon name="calendar" size={13} />
           <span>{dateLabel}</span>
         </time>
-
-        <button
-          type="button"
-          className="topbar__icon-btn"
-          onClick={toggleTheme}
-          aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-          title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-        >
-          <Icon name={isDark ? 'sun' : 'moon'} size={17} />
-        </button>
 
         {onOpenShortcuts && (
           <button

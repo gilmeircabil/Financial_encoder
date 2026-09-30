@@ -24,6 +24,9 @@ const SettingsBackups = lazy(() => import('./pages/Settings/SettingsBackups'))
 const SettingsAbout = lazy(() => import('./pages/Settings/SettingsAbout'))
 const SettingsDanger = lazy(() => import('./pages/Settings/SettingsDanger'))
 
+import IntroScreen from './components/ui/IntroScreen'
+import { AppLogo } from './components/ui/AppLogo'
+
 type BootstrapState =
   | { status: 'loading' }
   | { status: 'ok' }
@@ -65,8 +68,9 @@ function BootstrapGate({ children }: { children: ReactNode }): React.JSX.Element
     return (
       <div className="boot">
         <div className="boot__card">
+          <AppLogo size={48} withBackground />
           <div className="spinner" aria-label="Loading" />
-          <p className="boot__text">Starting Financial Encoder&hellip;</p>
+          <p className="boot__text">Starting system&hellip;</p>
         </div>
       </div>
     )
@@ -89,36 +93,50 @@ function BootstrapGate({ children }: { children: ReactNode }): React.JSX.Element
   return <>{children}</>
 }
 
+function SystemContent(): React.JSX.Element {
+  const [showIntro, setShowIntro] = useState(() => {
+    return localStorage.getItem('fe_intro_dismissed') !== 'true'
+  })
+
+  if (showIntro) {
+    return <IntroScreen onEnter={() => setShowIntro(false)} />
+  }
+
+  return (
+    <Suspense fallback={<div className="spinner" style={{ margin: '40px auto' }} aria-label="Loading page" />}>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/income" element={<Income />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/capital" element={<Capital />} />
+          <Route path="/cash-flow" element={<CashFlow />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/import" element={<Import />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/settings" element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
+          <Route path="/settings/general" element={<SettingsGeneral />} />
+          <Route path="/settings/appearance" element={<SettingsAppearance />} />
+          <Route path="/settings/updates" element={<SettingsUpdates />} />
+          <Route path="/settings/backups" element={<SettingsBackups />} />
+          <Route path="/settings/about" element={<SettingsAbout />} />
+          <Route path="/settings/danger" element={<SettingsDanger />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  )
+}
+
 function App(): React.JSX.Element {
   return (
     <SettingsProvider>
       <ToastProvider>
         <HashRouter>
           <BootstrapGate>
-            <Suspense fallback={<div className="spinner" style={{ margin: '40px auto' }} aria-label="Loading page" />}>
-              <Routes>
-                <Route element={<AppShell />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/transactions" element={<Transactions />} />
-                  <Route path="/income" element={<Income />} />
-                  <Route path="/expenses" element={<Expenses />} />
-                  <Route path="/capital" element={<Capital />} />
-                  <Route path="/cash-flow" element={<CashFlow />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/import" element={<Import />} />
-                  <Route path="/documents" element={<Documents />} />
-                  <Route path="/settings" element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-                  <Route path="/settings/general" element={<SettingsGeneral />} />
-                  <Route path="/settings/appearance" element={<SettingsAppearance />} />
-                  <Route path="/settings/updates" element={<SettingsUpdates />} />
-                  <Route path="/settings/backups" element={<SettingsBackups />} />
-                  <Route path="/settings/about" element={<SettingsAbout />} />
-                  <Route path="/settings/danger" element={<SettingsDanger />} />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Route>
-              </Routes>
-            </Suspense>
+            <SystemContent />
           </BootstrapGate>
         </HashRouter>
       </ToastProvider>

@@ -68,7 +68,7 @@ function createMainWindow(): BrowserWindow {
     show: false,
     title: 'Financial Encoder',
     autoHideMenuBar: true,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#000000',
     // In packaged builds the OS reads the icon from the executable; in dev the
     // helper binary icon is used unless we point at the real one explicitly.
     ...(app.isPackaged

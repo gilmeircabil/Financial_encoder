@@ -12,13 +12,14 @@ function SettingsGeneral(): React.JSX.Element | null {
   const { settings } = useSettings()
   const { saving, savedKey, notice, save, dismissNotice } = useSettingSave()
   const [dateFormat, setDateFormat] = useState('')
+  const [appName, setAppName] = useState(() => settings?.appName || '')
 
   if (!settings) {
     return null
   }
 
   return (
-    <SettingsPage description="Currency and date format preferences.">
+    <SettingsPage description="System name, currency, and date format preferences.">
       {notice ? (
         <div role="status" className="notice notice--error">
           <span>{notice.text}</span>
@@ -29,7 +30,39 @@ function SettingsGeneral(): React.JSX.Element | null {
       ) : null}
 
       <div className="settings-grid">
-        <SettingsSection id="s-general" icon="globe" title="General" description="Currency and date format.">
+        <SettingsSection id="s-general" icon="globe" title="General" description="System identity, currency, and date format.">
+          <div className="field">
+            <label className="field__label" htmlFor="setting-app-name">System Name</label>
+            <div className="field__input-row" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                id="setting-app-name"
+                type="text"
+                className="text-input"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                placeholder="Enter system name…"
+                maxLength={60}
+                disabled={saving === 'appName'}
+              />
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => {
+                  const trimmed = appName.trim()
+                  if (trimmed && trimmed !== settings.appName) {
+                    void save('appName', trimmed)
+                  }
+                }}
+                disabled={saving === 'appName' || !appName.trim() || appName.trim() === settings.appName}
+              >
+                Change Name
+              </button>
+              <FieldStatus active={saving === 'appName'} saved={savedKey === 'appName'} />
+            </div>
+            <span className="field__hint">
+              Changes the display name shown in the top navigation, sidebar, and reports.
+            </span>
+          </div>
           <div className="field">
             <label className="field__label" htmlFor="setting-currency">Currency</label>
             <div className="field__input-row">
