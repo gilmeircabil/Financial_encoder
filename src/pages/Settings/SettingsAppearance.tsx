@@ -11,15 +11,15 @@ function SettingsAppearance(): React.JSX.Element | null {
   return (
     <SettingsPage description="System aesthetic and visual configuration.">
       <div className="settings-grid">
-        <SettingsSection id="s-appearance" icon="palette" title="System Aesthetic" description="Minimal black and white design system.">
+        <SettingsSection id="s-appearance" icon="palette" title="System Aesthetic" description="Corporate fintech API & cleanroom design system.">
           <div className="field">
             <span className="field__label">Theme</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '8px', background: 'var(--bg-surface-alt)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '8px', background: 'var(--bg-surface)', border: '1px solid var(--border-strong)' }}>
               <AppLogo size={36} withBackground />
               <div>
-                <p style={{ fontWeight: 700, margin: '0 0 4px', fontSize: '15px' }}>Black &amp; White Minimal Edition</p>
+                <p style={{ fontWeight: 700, margin: '0 0 4px', fontSize: '15px' }}>The Institutional Cleanroom</p>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
-                  A clean, high-contrast monochrome design system without distracting light/dark modes or hover animations.
+                  Clean Frost canvas (#FAFAFC), Carbon Black typography (#111217), and Steel framing (#D1D5DB) for distraction-free financial management.
                 </p>
               </div>
             </div>

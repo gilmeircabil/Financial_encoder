@@ -18,13 +18,13 @@ export function AppLogo({ size = 24, className, withBackground = false }: AppLog
       style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
     >
       {withBackground ? (
-        <rect x="1" y="1" width="98" height="98" rx="22" fill="#0a0a0c" stroke="#27272a" strokeWidth="2" />
+        <rect x="1" y="1" width="98" height="98" rx="22" fill="#ffffff" stroke="#d1d5db" strokeWidth="2.5" />
       ) : null}
       {/* Outer precision geometric diamond */}
       <polygon
         points="50,15 85,50 50,85 15,50"
         fill="none"
-        stroke={withBackground ? '#ffffff' : 'currentColor'}
+        stroke={withBackground ? '#111217' : 'currentColor'}
         strokeWidth="6"
         strokeLinejoin="round"
       />
@@ -34,20 +34,20 @@ export function AppLogo({ size = 24, className, withBackground = false }: AppLog
         y1="32"
         x2="50"
         y2="68"
-        stroke={withBackground ? '#ffffff' : 'currentColor'}
+        stroke={withBackground ? '#111217' : 'currentColor'}
         strokeWidth="7.5"
       />
       {/* Horizontal balance bars */}
-      <rect x="34" y="37" width="32" height="7.5" rx="1" fill={withBackground ? '#ffffff' : 'currentColor'} />
-      <rect x="28" y="46.25" width="44" height="7.5" rx="1" fill={withBackground ? '#ffffff' : 'currentColor'} />
-      <rect x="36" y="55.5" width="28" height="7.5" rx="1" fill={withBackground ? '#ffffff' : 'currentColor'} />
+      <rect x="34" y="37" width="32" height="7.5" rx="1" fill={withBackground ? '#111217' : 'currentColor'} />
+      <rect x="28" y="46.25" width="44" height="7.5" rx="1" fill={withBackground ? '#111217' : 'currentColor'} />
+      <rect x="36" y="55.5" width="28" height="7.5" rx="1" fill={withBackground ? '#111217' : 'currentColor'} />
       {/* Central vault core */}
       <circle
         cx="50"
         cy="50"
         r="9"
-        fill={withBackground ? '#0a0a0c' : 'var(--bg-surface, #000000)'}
-        stroke={withBackground ? '#ffffff' : 'currentColor'}
+        fill={withBackground ? '#ffffff' : 'var(--bg-surface, #ffffff)'}
+        stroke={withBackground ? '#111217' : 'currentColor'}
         strokeWidth="4.5"
       />
     </svg>

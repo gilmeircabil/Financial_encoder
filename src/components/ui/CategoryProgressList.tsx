@@ -11,14 +11,14 @@ interface CategoryProgressListProps {
 }
 
 const COLOR_PALETTES = [
-  '#4f63f4', // indigo
-  '#0ea371', // emerald
-  '#f59e0b', // amber
-  '#ec4899', // pink
-  '#8b5cf6', // violet
-  '#06b6d4', // cyan
-  '#f97316', // orange
-  '#10b981', // teal
+  '#111217', // Carbon Black
+  '#059669', // Emerald
+  '#2563eb', // Royal Blue
+  '#d97706', // Amber
+  '#7c3aed', // Violet
+  '#0891b2', // Cyan
+  '#dc2626', // Crimson
+  '#4b5563', // Steel Charcoal
 ]
 
 export default function CategoryProgressList({

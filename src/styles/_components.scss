@@ -37,7 +37,7 @@
   width: 4px;
   height: 16px;
   border-radius: 2px;
-  background: #ffffff;
+  background: #111217;
   flex-shrink: 0;
 }
 
@@ -70,22 +70,22 @@
 }
 
 .btn--primary {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: #000000;
+  background: #111217;
+  border-color: #111217;
+  color: #ffffff;
   box-shadow: none;
 }
 
 
 
 .btn--primary:active:not(:disabled) {
-  background: #e4e4e7;
+  background: #1f2937;
 }
 
 .btn--danger {
-  background: var(--bg-surface-alt);
+  background: var(--bg-surface);
   border: 1px solid var(--border-strong);
-  color: #ffffff;
+  color: var(--text);
   box-shadow: none;
 }
 
@@ -116,9 +116,9 @@
 
 
 .btn--segment-active {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: #000000;
+  background: #111217;
+  border-color: #111217;
+  color: #ffffff;
   box-shadow: none;
 }
 
@@ -526,8 +526,8 @@
 
 
 .settings-nav__link--active {
-  background: #ffffff;
-  color: #000000;
+  background: #111217;
+  color: #ffffff;
 }
 
 .settings-section {
@@ -1163,29 +1163,30 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: capitalize;
-  letter-spacing: 0.2px;
+  gap: 5px;
+  padding: 2.5px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border: 1px solid transparent;
 }
 
 .badge::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
 }
 
-.badge--income { background: var(--success-soft); color: var(--success); }
-.badge--capital { background: var(--success-soft); color: var(--success); }
-.badge--expense { background: var(--danger-soft); color: var(--danger); }
-.badge--withdrawal { background: var(--danger-soft); color: var(--danger); }
-.badge--asset { background: var(--accent-soft); color: var(--accent-ink); }
-.badge--liability { background: var(--warning-soft); color: var(--warning); }
+.badge--income { background: var(--success-soft); color: var(--success-ink); border-color: var(--success-border); }
+.badge--capital { background: var(--info-soft); color: var(--info); border-color: #bfdbfe; }
+.badge--expense { background: var(--danger-soft); color: var(--danger-ink); border-color: var(--danger-border); }
+.badge--withdrawal { background: var(--warning-soft); color: var(--warning-ink); border-color: var(--warning-border); }
+.badge--asset { background: var(--bg-surface-alt); color: var(--text); border-color: var(--border-strong); }
+.badge--liability { background: var(--warning-soft); color: var(--warning-ink); border-color: var(--warning-border); }
 
 /* Income / Expenses / type-scoped pages ---------------------------------- */
 
@@ -1372,10 +1373,14 @@
 
 .cf-positive {
   color: var(--success);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .cf-negative {
   color: var(--danger);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Dashboard -------------------------------------------------------------- */
@@ -1716,10 +1721,7 @@
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  background: #ffffff;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #111217;
 }
 
 .import-summary__label {
@@ -2436,25 +2438,25 @@
 .stat-card--income .stat-card__icon {
   background: var(--success-soft);
   color: var(--success);
-  border-color: transparent;
+  border: 1px solid var(--success-border);
 }
 
 .stat-card--expense .stat-card__icon {
   background: var(--danger-soft);
   color: var(--danger);
-  border-color: transparent;
+  border: 1px solid var(--danger-border);
 }
 
 .stat-card--net .stat-card__icon {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  border-color: transparent;
+  background: var(--bg-dark-block);
+  color: #ffffff;
+  border: 1px solid var(--border-strong);
 }
 
 .stat-card--capital .stat-card__icon {
-  background: var(--warning-soft);
-  color: var(--warning);
-  border-color: transparent;
+  background: var(--info-soft);
+  color: var(--info);
+  border: 1px solid #bfdbfe;
 }
 
 .stat-card__value {
@@ -2605,27 +2607,33 @@
 
 
 .tx-tab--active {
-  background: #ffffff;
-  color: #000000;
-  border-color: #ffffff;
+  background: #111217;
+  color: #ffffff;
+  border-color: #111217;
   box-shadow: none;
 }
 
 .tx-amount-badge {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: -0.2px;
 }
 
 .cf-positive .tx-amount-badge {
   background: var(--success-soft);
-  color: var(--success);
+  color: var(--success-ink);
+  border: 1px solid var(--success-border);
 }
 
 .cf-negative .tx-amount-badge {
   background: var(--danger-soft);
-  color: var(--danger);
+  color: var(--danger-ink);
+  border: 1px solid var(--danger-border);
 }
 
 .tx-category-tag {

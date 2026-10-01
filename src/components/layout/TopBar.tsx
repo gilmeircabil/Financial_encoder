@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useSettings } from '../../contexts/SettingsContext'
 import { formatDate } from '../../utils/dates'
 import { Icon } from '../ui/Icon'
-import { AppLogo } from '../ui/AppLogo'
 
 interface TopBarProps {
   onOpenAddTransaction?: () => void
@@ -33,14 +32,6 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
 
   return (
     <header className="topbar">
-      <div className="topbar__left">
-        <Link to="/dashboard" className="topbar__brand-link" title="Go to Dashboard">
-          <div className="topbar__logo" aria-hidden="true">
-            <AppLogo size={18} />
-          </div>
-          <span className="topbar__app-name">{settings?.appName ?? 'Financial Encoder'}</span>
-        </Link>
-      </div>
 
       <form className="topbar__search" role="search" onSubmit={handleSearchSubmit}>
         <span className="topbar__search-icon" aria-hidden="true">
