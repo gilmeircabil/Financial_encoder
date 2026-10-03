@@ -44,8 +44,8 @@ button:disabled {
 }
 
 ::selection {
-  background: #111217;
-  color: #ffffff;
+  background: var(--text);
+  color: var(--bg);
 }
 
 h1,

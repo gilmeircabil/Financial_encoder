@@ -18,9 +18,6 @@ const SettingsContext = createContext<SettingsContextValue>({
   setSetting: async () => undefined,
 })
 
-function applyTheme(): void {
-  document.documentElement.dataset.theme = 'bw'
-}
 
 export function SettingsProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
@@ -29,7 +26,6 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
 
   useEffect(() => {
     let cancelled = false
-    applyTheme()
     api.settings
       .getAll()
       .then((loaded) => {
@@ -37,6 +33,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
           return
         }
         setSettings(loaded)
+        document.documentElement.dataset.theme = loaded.theme || 'system'
       })
       .catch((err) => {
         if (cancelled) {
@@ -59,6 +56,9 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
   const setSetting = useCallback(async (key: keyof AppSettings, value: string): Promise<void> => {
     const updated = await api.settings.set(key, value)
     setSettings(updated)
+    if (key === 'theme') {
+      document.documentElement.dataset.theme = updated.theme || 'system'
+    }
   }, [])
 
   const value = useMemo(

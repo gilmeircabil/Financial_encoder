@@ -163,8 +163,8 @@ function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverride
           type="monotone"
           stroke="var(--accent)"
           strokeWidth={2.5}
-          dot={{ r: 4, stroke: '#ffffff', strokeWidth: 2, fill: '#111217' }}
-          activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#111217' }}
+          dot={{ r: 4, stroke: 'var(--bg-surface)', strokeWidth: 2, fill: 'var(--accent)' }}
+          activeDot={{ r: 6, stroke: 'var(--bg-surface)', strokeWidth: 2, fill: 'var(--accent)' }}
         />
       </ComposedChart>
     </ResponsiveContainer>

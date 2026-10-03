@@ -78,47 +78,56 @@
   color-scheme: light;
 }
 
-:root[data-theme='light'],
-:root[data-theme='dark'],
-:root[data-theme='bw'],
-:root[data-theme='system'] {
-  --bg: #fafafc;
+@mixin dark-mode {
+  --bg: #090a0b;
   --bg-glow: none;
-  --bg-surface: #ffffff;
-  --bg-surface-alt: #f4f5f8;
-  --bg-hover: #f4f5f8;
-  --bg-inset: #eef0f4;
-  --bg-dark-block: #1f2937;
+  --bg-surface: #111214;
+  --bg-surface-alt: #1a1c1f;
+  --bg-hover: #1a1c1f;
+  --bg-inset: #000000;
+  --bg-dark-block: #ffffff;
+  
+  --text: #f1f2f4;
+  --text-muted: #a1a5ab;
+  --text-faint: #6e7278;
+  
+  --border: #232529;
+  --border-strong: #363940;
+  
+  --accent: #f1f2f4;
+  --accent-strong: #ffffff;
+  --accent-soft: #1a1c1f;
+  --accent-ink: #f1f2f4;
+  
+  --success: #10b981;
+  --success-soft: rgba(16, 185, 129, 0.15);
+  --success-border: rgba(16, 185, 129, 0.3);
+  --success-ink: #34d399;
+  
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.15);
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --danger-ink: #f87171;
+  
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.15);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-ink: #fbbf24;
+  
+  --info: #3b82f6;
+  --info-soft: rgba(59, 130, 246, 0.15);
+  
+  --focus-ring: 0 0 0 2px #f1f2f4;
+  
+  color-scheme: dark;
+}
 
-  --text: #111217;
-  --text-muted: #4b5563;
-  --text-faint: #9ca3af;
+:root[data-theme='dark'] {
+  @include dark-mode;
+}
 
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-
-  --accent: #111217;
-  --accent-strong: #1f2937;
-  --accent-soft: #f3f4f6;
-  --accent-ink: #111217;
-
-  --success: #059669;
-  --success-soft: #ecfdf5;
-  --success-border: #a7f3d0;
-  --success-ink: #065f46;
-
-  --danger: #dc2626;
-  --danger-soft: #fef2f2;
-  --danger-border: #fecaca;
-  --danger-ink: #991b1b;
-
-  --warning: #d97706;
-  --warning-soft: #fffbeb;
-  --warning-border: #fde68a;
-  --warning-ink: #92400e;
-
-  --info: #2563eb;
-  --info-soft: #eff6ff;
-
-  color-scheme: light;
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] {
+    @include dark-mode;
+  }
 }

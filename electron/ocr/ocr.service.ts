@@ -91,10 +91,11 @@ interface PdfLike {
 async function extractPdfText(filePath: string): Promise<string[]> {
   const pdfjs = await loadPdfJs()
   const data: Uint8Array = new Uint8Array(await readFile(filePath))
+  const standardFontDataUrl = path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), 'standard_fonts', path.sep).replace(/\\/g, '/') + '/'
 
   let document: PdfLike | null = null
   try {
-    document = (await pdfjs.getDocument({ data }).promise) as unknown as PdfLike
+    document = (await pdfjs.getDocument({ data, standardFontDataUrl }).promise) as unknown as PdfLike
     const lines: string[] = []
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber)

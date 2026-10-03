@@ -37,7 +37,7 @@
   width: 4px;
   height: 16px;
   border-radius: 2px;
-  background: #111217;
+  background: var(--accent);
   flex-shrink: 0;
 }
 
@@ -70,16 +70,16 @@
 }
 
 .btn--primary {
-  background: #111217;
-  border-color: #111217;
-  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-surface);
   box-shadow: none;
 }
 
 
 
 .btn--primary:active:not(:disabled) {
-  background: #1f2937;
+  background: var(--accent-strong);
 }
 
 .btn--danger {
@@ -116,9 +116,9 @@
 
 
 .btn--segment-active {
-  background: #111217;
-  border-color: #111217;
-  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-surface);
   box-shadow: none;
 }
 
@@ -374,7 +374,7 @@
 
 .update-banner__progress-bar {
   height: 100%;
-  background: #ffffff;
+  background: var(--accent);
   border-radius: 999px;
   transition: width 200ms ease;
 }
@@ -526,8 +526,8 @@
 
 
 .settings-nav__link--active {
-  background: #111217;
-  color: #ffffff;
+  background: var(--accent);
+  color: var(--bg-surface);
 }
 
 .settings-section {
@@ -1182,7 +1182,7 @@
 }
 
 .badge--income { background: var(--success-soft); color: var(--success-ink); border-color: var(--success-border); }
-.badge--capital { background: var(--info-soft); color: var(--info); border-color: #bfdbfe; }
+.badge--capital { background: var(--info-soft); color: var(--info); border-color: var(--info); }
 .badge--expense { background: var(--danger-soft); color: var(--danger-ink); border-color: var(--danger-border); }
 .badge--withdrawal { background: var(--warning-soft); color: var(--warning-ink); border-color: var(--warning-border); }
 .badge--asset { background: var(--bg-surface-alt); color: var(--text); border-color: var(--border-strong); }
@@ -1265,7 +1265,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: #ffffff;
+  background: var(--accent);
   opacity: 0;
   transition: opacity var(--dur) var(--ease);
 }
@@ -1721,7 +1721,7 @@
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: #111217;
+  color: var(--accent);
 }
 
 .import-summary__label {
@@ -2391,19 +2391,19 @@
 }
 
 .stat-card--income::before {
-  background: linear-gradient(90deg, var(--success), #34d399);
+  background: linear-gradient(90deg, var(--success), var(--success-ink));
 }
 
 .stat-card--expense::before {
-  background: linear-gradient(90deg, var(--danger), #fb7185);
+  background: linear-gradient(90deg, var(--danger), var(--danger-ink));
 }
 
 .stat-card--net::before {
-  background: #ffffff;
+  background: var(--accent);
 }
 
 .stat-card--capital::before {
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  background: linear-gradient(90deg, var(--warning), var(--warning-ink));
 }
 
 .stat-card__head {
@@ -2449,14 +2449,14 @@
 
 .stat-card--net .stat-card__icon {
   background: var(--bg-dark-block);
-  color: #ffffff;
+  color: var(--bg-surface);
   border: 1px solid var(--border-strong);
 }
 
 .stat-card--capital .stat-card__icon {
   background: var(--info-soft);
   color: var(--info);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info);
 }
 
 .stat-card__value {
@@ -2607,9 +2607,9 @@
 
 
 .tx-tab--active {
-  background: #111217;
-  color: #ffffff;
-  border-color: #111217;
+  background: var(--accent);
+  color: var(--bg-surface);
+  border-color: var(--accent);
   box-shadow: none;
 }
 
@@ -2715,7 +2715,7 @@
 }
 
 .dropzone--active {
-  border-color: #ffffff;
+  border-color: var(--bg-surface);
   background: var(--bg-surface-alt);
   box-shadow: none;
 }
@@ -2879,7 +2879,7 @@
 
 .import-step--active .import-step__num {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--bg-surface);
   border-color: transparent;
   box-shadow: 0 2px 6px rgba(79, 99, 244, 0.35);
 }

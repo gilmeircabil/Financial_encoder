@@ -29,8 +29,8 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #000000;
-  border-right: 1px solid #1f222e;
+  background: var(--bg-surface-alt);
+  border-right: 1px solid var(--border);
   user-select: none;
 }
 
@@ -39,7 +39,7 @@
   align-items: center;
   gap: 12px;
   padding: 18px 16px;
-  border-bottom: 1px solid #1f222e;
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar__brand-text {
@@ -55,9 +55,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
-  color: #000000;
-  border: 1px solid #ffffff;
+  background: var(--accent);
+  color: var(--bg-surface);
+  border: 1px solid var(--accent);
   box-shadow: none;
   flex-shrink: 0;
 }
@@ -69,7 +69,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #ffffff;
+  color: var(--text);
 }
 
 .sidebar__version-tag {
@@ -77,7 +77,7 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #9ca3af;
+  color: var(--text-faint);
 }
 
 .sidebar__sections {
@@ -87,11 +87,11 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  scrollbar-color: #27272a transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .sidebar__sections::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--border-strong);
 }
 
 .sidebar__group {
@@ -106,7 +106,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.7px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .sidebar__list {
@@ -124,7 +124,7 @@
   gap: 11px;
   padding: 8px 12px;
   border-radius: 6px;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-weight: 600;
   font-size: 13.5px;
   position: relative;
@@ -134,24 +134,25 @@
 
 .sidebar__link svg {
   flex-shrink: 0;
-  color: #6b7280;
+  color: var(--text-muted);
   opacity: 0.9;
 }
 
 .sidebar__link--active {
-  background: #ffffff;
-  color: #000000 !important;
-  border-color: #ffffff;
+  background: var(--bg-surface);
+  color: var(--text) !important;
+  border-color: var(--border);
   font-weight: 700;
+  box-shadow: var(--shadow-sm);
 }
 
 .sidebar__link--active svg {
-  color: #000000 !important;
+  color: var(--text) !important;
   opacity: 1;
 }
 
 .sidebar__link--active .sidebar__link-label {
-  color: #000000 !important;
+  color: var(--text) !important;
 }
 
 .sidebar__link-label {
@@ -164,11 +165,11 @@
 
 .sidebar__footer {
   padding: 14px 16px;
-  border-top: 1px solid #1f222e;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 5px;
-  background: #08080a;
+  background: var(--bg-surface-alt);
 }
 
 .sidebar__status {
@@ -181,8 +182,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #059669;
-  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.35);
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--success-border);
   flex-shrink: 0;
 }
 
@@ -191,12 +192,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #d1d5db;
+  color: var(--text);
 }
 
 .sidebar__credit {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 /* Top bar ---------------------------------------------------------------- */
@@ -377,31 +378,6 @@
   align-items: center;
 }
 
-/* Boot screen ------------------------------------------------------------ */
-
-.boot {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: #000000;
-}
-
-.boot__card {
-  width: min(420px, 100%);
-  padding: 36px 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  box-shadow: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  text-align: center;
-  animation: scale-in var(--dur-slow) var(--ease);
-}
 
 /* Boot screen ------------------------------------------------------------ */
 
@@ -558,7 +534,7 @@
 
 .intro-form__input:focus {
   outline: none;
-  border-color: #111217;
+  border-color: var(--accent);
   box-shadow: var(--focus-ring);
 }
 
@@ -573,8 +549,8 @@
   width: 100%;
   height: 44px;
   border-radius: 6px;
-  background: #111217;
-  color: #ffffff;
+  background: var(--accent);
+  color: var(--bg-surface);
   font-weight: 700;
   font-size: 15px;
   border: none;
@@ -586,7 +562,7 @@
 }
 
 .intro-enter-btn:active {
-  background: #1f2937;
+  background: var(--accent-strong);
 }
 
 .intro-toggle {
@@ -601,6 +577,6 @@
 }
 
 .intro-toggle input[type="checkbox"] {
-  accent-color: #111217;
+  accent-color: var(--accent);
   cursor: pointer;
 }
