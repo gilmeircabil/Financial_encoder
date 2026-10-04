@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { logger } from '../services/logger.service'
+import { closeDatabase } from '../database/connection'
 import type { UpdateStatus } from './update-meta'
 import { friendlyUpdateMessage, parseReleaseNotes } from './update-meta'
 
@@ -86,6 +87,16 @@ export function downloadUpdate(): UpdateStatus {
 }
 
 export function installUpdate(): void {
+  try {
+    closeDatabase()
+  } catch (err) {
+    logger.warn('failed to close database for update', err)
+  }
+
+  // Prevent main.ts from intercepting the window close and calling app.quit() 
+  // which would silently abort the electron-updater's install sequence.
+  app.removeAllListeners('window-all-closed')
+
   autoUpdater.quitAndInstall(false, true)
 }
 

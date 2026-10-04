@@ -74,8 +74,7 @@ module.exports = {
       provider: 'github',
       owner: 'gilmierdev',
       repo: 'financial_encoder',
-      releaseType: 'release',
-      draft: false,
+      releaseType: 'release'
     },
   ],
   releaseInfo: {

@@ -29,32 +29,32 @@
   --sidebar-width: 244px;
   --topbar-height: 60px;
 
-  /* The Institutional Cleanroom (Light Mode) */
-  --accent-gradient: #111217;
-  --accent-gradient-strong: #1f2937;
+  /* Minimal Soft Light Mode - Easy on the eyes */
+  --accent-gradient: #3f3f46;
+  --accent-gradient-strong: #27272a;
 
-  /* 60% Dominant (Canvas & Background): Clean Frost (#FAFAFC) */
-  --bg: #fafafc;
+  /* 60% Dominant (Canvas & Background): Soft Warm Gray (#F4F4F3) */
+  --bg: #f4f4f3;
   --bg-glow: none;
-  --bg-surface: #ffffff;
-  --bg-surface-alt: #f4f5f8;
-  --bg-hover: #f4f5f8;
-  --bg-inset: #eef0f4;
-  --bg-dark-block: #1f2937;
+  --bg-surface: #fdfdfc;
+  --bg-surface-alt: #eeeeeb;
+  --bg-hover: #eeeeeb;
+  --bg-inset: #e6e6e3;
+  --bg-dark-block: #27272a;
 
-  /* 30% Secondary (Typography & Tables): Carbon Black (#111217) */
-  --text: #111217;
-  --text-muted: #4b5563;
-  --text-faint: #9ca3af;
+  /* 30% Secondary (Typography & Tables): Softer Ink (#2C2C30) */
+  --text: #2c2c30;
+  --text-muted: #646469;
+  --text-faint: #9c9ca2;
 
-  /* 10% Accent (Interactive Blocks & Borders): Steel Border (#D1D5DB) */
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
+  /* 10% Accent (Interactive Blocks & Borders): Warm Border */
+  --border: #e2e2de;
+  --border-strong: #c8c8c4;
 
-  --accent: #111217;
-  --accent-strong: #1f2937;
-  --accent-soft: #f3f4f6;
-  --accent-ink: #111217;
+  --accent: #3f3f46;
+  --accent-strong: #27272a;
+  --accent-soft: #e8e8e5;
+  --accent-ink: #2c2c30;
 
   /* High-Scan Semantic Financial Colors (Fintech Cleanroom) */
   --success: #059669;
