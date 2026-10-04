@@ -75,6 +75,7 @@ module.exports = {
       owner: 'gilmierdev',
       repo: 'financial_encoder',
       releaseType: 'release',
+      draft: false,
     },
   ],
   releaseInfo: {
