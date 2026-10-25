@@ -9,16 +9,12 @@ import { Icon, type IconName } from '../ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency } from '../../utils/currency'
+import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
+import { useDateRange } from '../../contexts/DateRangeContext'
+import { GlobalDateRangeSelector } from '../ui/GlobalDateRangeSelector'
 import { computeFinance } from '../../lib/finance'
 import { formatDate, parseISODate } from '../../utils/dates'
-import {
-  customRangeInvalid,
-  PERIOD_KEYS,
-  PERIOD_LABELS,
-  periodRange,
-  type PeriodKey,
-} from '../../utils/periods'
+
 import { logToMain } from '../../services/logger'
 import type {
   CalculationFilter,
@@ -84,9 +80,7 @@ export default function LedgerPage({
   const currencyCode = settings?.currency ?? 'PHP'
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
 
-  const [period, setPeriod] = useState<PeriodKey>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const { range, customInvalid } = useDateRange()
 
   const [totals, setTotals] = useState<CalculationTotals | null>(null)
   const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>([])
@@ -105,8 +99,7 @@ export default function LedgerPage({
   const [deleting, setDeleting] = useState<Transaction | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
 
-  const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo])
-  const customInvalid = customRangeInvalid(customFrom, customTo)
+  
 
   useEffect(() => {
     let cancelled = false
@@ -185,7 +178,7 @@ export default function LedgerPage({
 
   useEffect(() => {
     setPage(1)
-  }, [period, customFrom, customTo, categoryFilter])
+  }, [range, categoryFilter])
 
   const openEdit = (tx: Transaction): void => {
     setEditing(tx)
@@ -276,53 +269,8 @@ export default function LedgerPage({
         }
       />
 
-      {/* Period selector */}
       <div className="card page-toolbar">
-        <div className="period-selector" role="radiogroup" aria-label="Time period">
-          {PERIOD_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
-              role="radio"
-              aria-checked={period === key}
-              onClick={() => setPeriod(key)}
-            >
-              {PERIOD_LABELS[key]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`btn btn--segment${period === 'custom' ? ' btn--segment-active' : ''}`}
-            role="radio"
-            aria-checked={period === 'custom'}
-            onClick={() => setPeriod('custom')}
-          >
-            Custom
-          </button>
-        </div>
-
-        {period === 'custom' && (
-          <div className="period-custom">
-            <label className="field__label" htmlFor={`${type}-from`}>From</label>
-            <input
-              id={`${type}-from`}
-              type="date"
-              className="text-input text-input--sm"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-            />
-            <label className="field__label" htmlFor={`${type}-to`}>To</label>
-            <input
-              id={`${type}-to`}
-              type="date"
-              className="text-input text-input--sm"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-            />
-          </div>
-        )}
-
+        <GlobalDateRangeSelector />
         {categories.length > 0 && (
           <label className="field__label page-cat-filter" htmlFor={`${type}-cat-filter`}>
             <span className="sr-only">Filter by category</span>
@@ -341,12 +289,6 @@ export default function LedgerPage({
         )}
       </div>
 
-      {customInvalid ? (
-        <div role="alert" className="notice notice--error">
-          The "From" date must be on or before the "To" date.
-        </div>
-      ) : null}
-
       {error ? (
         <div role="alert" className="notice notice--error">{error}</div>
       ) : null}
@@ -363,9 +305,7 @@ export default function LedgerPage({
                 <Icon name={type === 'income' ? 'arrowUp' : 'arrowDown'} size={17} />
               </div>
             </div>
-            <span className={`stat-card__value ${type === 'income' ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-              {formatCurrency(totalAmount, currencyCode)}
-            </span>
+            <span className={`stat-card__value ${type === 'income' ? 'stat-card__value--positive' : 'stat-card__value--negative'}`} title={formatCurrency(totalAmount, currencyCode)}>{formatCompactCurrency(totalAmount, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__subtext">{statSubtext(totals.count)}</span>
             </div>
@@ -378,9 +318,7 @@ export default function LedgerPage({
                 <Icon name="calendar" size={17} />
               </div>
             </div>
-            <span className="stat-card__value">
-              {formatCurrency(monthlyAverage, currencyCode)}
-            </span>
+            <span className="stat-card__value" title={formatCurrency(monthlyAverage, currencyCode)}>{formatCompactCurrency(monthlyAverage, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__subtext">Mean per active month</span>
             </div>

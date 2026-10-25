@@ -31,7 +31,7 @@ function AppShell(): React.JSX.Element {
       />
       <div className="app-shell__main">
         <TopBar
-          onOpenAddTransaction={() => openGlobalAdd('expense')}
+          onOpenAddTransaction={(type) => openGlobalAdd(type ?? 'expense')}
         />
         <main className="app-shell__content">
           <Outlet />

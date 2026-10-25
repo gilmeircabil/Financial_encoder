@@ -10,7 +10,8 @@ import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
 import { formatDate, parseISODate } from '../../utils/dates'
-import { PERIOD_KEYS, PERIOD_LABELS, customRangeInvalid, periodRange, type PeriodKey } from '../../utils/periods'
+import { useDateRange } from '../../contexts/DateRangeContext'
+import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
 import { logToMain } from '../../services/logger'
 import type { Category, Transaction, TransactionFilters, TransactionPage, TransactionType } from '../../../electron/types/ipc'
 
@@ -50,9 +51,7 @@ function Transactions(): React.JSX.Element {
   const [categories, setCategories] = useState<Category[]>([])
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [categoryFilter, setCategoryFilter] = useState<string>('')
-  const [period, setPeriod] = useState<PeriodKey>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const { range, customInvalid } = useDateRange()
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
   const [formOpen, setFormOpen] = useState(false)
@@ -71,15 +70,15 @@ function Transactions(): React.JSX.Element {
     return () => { cancelled = true }
   }, [])
 
-  const rangeInvalid = period === 'custom' && customRangeInvalid(customFrom, customTo)
+  
 
   const load = useCallback(async (): Promise<void> => {
-    if (rangeInvalid) {
+    if (customInvalid) {
       return
     }
     setLoading(true)
     setError(null)
-    const range = periodRange(period, customFrom, customTo)
+    // range comes from useDateRange()
     const filters: TransactionFilters = {
       page,
       page_size: PAGE_SIZE,
@@ -111,7 +110,7 @@ function Transactions(): React.JSX.Element {
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch, sort, typeFilter, categoryFilter, period, customFrom, customTo, rangeInvalid])
+  }, [page, debouncedSearch, sort, typeFilter, categoryFilter, range, customInvalid])
 
   useEffect(() => {
     void load()
@@ -157,15 +156,12 @@ function Transactions(): React.JSX.Element {
     return sort.sort_dir === 'asc' ? ' ↑' : ' ↓'
   }
 
-  const hasActiveFilters = Boolean(search || typeFilter || categoryFilter || period !== 'all')
+  const hasActiveFilters = Boolean(search || typeFilter || categoryFilter)
 
   const resetFilters = (): void => {
     setSearch('')
     setTypeFilter('')
     setCategoryFilter('')
-    setPeriod('all')
-    setCustomFrom('')
-    setCustomTo('')
     setPage(1)
   }
 
@@ -198,7 +194,7 @@ function Transactions(): React.JSX.Element {
   const handleExportCsv = async (): Promise<void> => {
     setExporting(true)
     try {
-      const range = periodRange(period, customFrom, customTo)
+      // range from useDateRange()
       await api.exports.file({
         format: 'csv',
         filter: {
@@ -302,43 +298,7 @@ function Transactions(): React.JSX.Element {
           </select>
         </label>
 
-        <div className="period-selector" role="group" aria-label="Period filter">
-          {PERIOD_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
-              onClick={() => { setPeriod(key); setPage(1) }}
-            >
-              {PERIOD_LABELS[key]}
-            </button>
-          ))}
-        </div>
-
-        {period === 'custom' ? (
-          <div className="period-custom">
-            <label className="field__label" htmlFor="tx-from">
-              <span>From</span>{' '}
-              <input
-                id="tx-from"
-                type="date"
-                className="text-input text-input--sm"
-                value={customFrom}
-                onChange={(e) => { setCustomFrom(e.target.value); setPage(1) }}
-              />
-            </label>
-            <label className="field__label" htmlFor="tx-to">
-              <span>To</span>{' '}
-              <input
-                id="tx-to"
-                type="date"
-                className="text-input text-input--sm"
-                value={customTo}
-                onChange={(e) => { setCustomTo(e.target.value); setPage(1) }}
-              />
-            </label>
-          </div>
-        ) : null}
+        <GlobalDateRangeSelector />
 
         {hasActiveFilters ? (
           <button type="button" className="btn btn--secondary btn--sm" onClick={resetFilters}>
@@ -354,7 +314,7 @@ function Transactions(): React.JSX.Element {
         )}
       </div>
 
-      {rangeInvalid ? (
+      {customInvalid ? (
         <div role="alert" className="notice notice--error">
           The start date must be on or before the end date.
         </div>

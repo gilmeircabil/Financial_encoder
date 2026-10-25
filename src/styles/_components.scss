@@ -1406,20 +1406,97 @@
 
 .dash-summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
-@media (max-width: 1260px) {
+@media (min-width: 1200px) {
+  .dash-summary {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 1199px) and (min-width: 768px) {
+  .dash-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 767px) and (min-width: 480px) {
   .dash-summary {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 479px) {
   .dash-summary {
     grid-template-columns: 1fr;
   }
+}
+
+/* Accessible Dropdown Menus */
+.app-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.app-dropdown__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  z-index: 100;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--bg-hover);
+    box-shadow: var(--focus-ring);
+  }
+}
+
+/* Date Range Toolbar & Plain Text Range */
+.date-range-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.date-range-plain-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: -0.2px;
 }
 
 .dash-cf {
@@ -2629,7 +2706,7 @@
 }
 
 .stat-card__value {
-  font-size: clamp(17px, 1.5vw, 24px);
+  font-size: clamp(1.1rem, 1.6vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.4px;
   line-height: 1.15;

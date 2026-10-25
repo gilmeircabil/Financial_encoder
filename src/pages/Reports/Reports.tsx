@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
 import CashFlowChart from '../../components/charts/CashFlowChart'
@@ -7,16 +7,11 @@ import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency } from '../../utils/currency'
+import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
 import { computeFinance } from '../../lib/finance'
-import {
-  customRangeInvalid,
-  formatMonth,
-  PERIOD_KEYS,
-  PERIOD_LABELS,
-  periodRange,
-  type PeriodKey,
-} from '../../utils/periods'
+import { useDateRange } from '../../contexts/DateRangeContext'
+import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
+import { formatMonth } from '../../utils/periods'
 import { monthlyToCashFlowChartData } from '../../utils/chart'
 import { logToMain } from '../../services/logger'
 import type {
@@ -31,9 +26,9 @@ function Reports(): React.JSX.Element {
   const { success, error: toastError } = useToast()
   const currencyCode = settings?.currency ?? 'PHP'
 
-  const [period, setPeriod] = useState<PeriodKey>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const { period, setPeriod, range, periodLabel, customInvalid } = useDateRange()
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   const [totals, setTotals] = useState<CalculationTotals | null>(null)
   const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>([])
@@ -41,8 +36,23 @@ function Reports(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo])
-  const customInvalid = customRangeInvalid(customFrom, customTo)
+  useEffect(() => {
+    if (!exportOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (!exportDropdownRef.current?.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExportOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [exportOpen])
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -89,9 +99,6 @@ function Reports(): React.JSX.Element {
   }, [breakdown])
 
   const hasData = totals ? totals.count > 0 : false
-  const periodLabel = period === 'custom' || !PERIOD_LABELS[period]
-    ? `${customFrom || 'Start'} – ${customTo || 'Now'}`
-    : PERIOD_LABELS[period]
 
   const chartData = useMemo(() => monthlyToCashFlowChartData(monthly, true), [monthly])
 
@@ -127,92 +134,76 @@ function Reports(): React.JSX.Element {
         description="Comprehensive income statements, cash flow analytics, and formal balance summaries."
         actions={
           <div className="page-header__actions">
-            {exporting === null && (
-              <button type="button" className="btn btn--secondary" onClick={() => window.print()} title="Print formal report">
-                <Icon name="printer" size={15} />
-                <span>Print</span>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => window.print()}
+              title="Print formal report"
+            >
+              <Icon name="printer" size={15} />
+              <span>Print</span>
+            </button>
+
+            <div className="app-dropdown" ref={exportDropdownRef}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => setExportOpen((prev) => !prev)}
+                disabled={exporting !== null || !hasData}
+                aria-haspopup="true"
+                aria-expanded={exportOpen}
+              >
+                <Icon name="download" size={15} />
+                <span>{exporting ? `Exporting (${exporting.toUpperCase()})…` : 'Export'}</span>
+                <Icon name="chevronDown" size={12} />
               </button>
-            )}
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={() => exportReport('csv')}
-              disabled={exporting !== null || !hasData}
-            >
-              <Icon name="download" size={15} />
-              <span>{exporting === 'csv' ? 'Exporting…' : 'CSV'}</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={() => exportReport('xlsx')}
-              disabled={exporting !== null || !hasData}
-            >
-              <Icon name="fileSpreadsheet" size={15} />
-              <span>{exporting === 'xlsx' ? 'Exporting…' : 'Excel (.xlsx)'}</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => exportReport('pdf')}
-              disabled={exporting !== null || !hasData}
-            >
-              <Icon name="reports" size={15} />
-              <span>{exporting === 'pdf' ? 'Generating PDF…' : 'Export PDF'}</span>
-            </button>
+              {exportOpen && (
+                <div className="app-dropdown__menu" role="menu">
+                  <button
+                    type="button"
+                    className="app-dropdown__item"
+                    role="menuitem"
+                    onClick={() => {
+                      setExportOpen(false)
+                      void exportReport('csv')
+                    }}
+                  >
+                    <Icon name="download" size={14} />
+                    <span>CSV (.csv)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="app-dropdown__item"
+                    role="menuitem"
+                    onClick={() => {
+                      setExportOpen(false)
+                      void exportReport('xlsx')
+                    }}
+                  >
+                    <Icon name="fileSpreadsheet" size={14} />
+                    <span>Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="app-dropdown__item"
+                    role="menuitem"
+                    onClick={() => {
+                      setExportOpen(false)
+                      void exportReport('pdf')
+                    }}
+                  >
+                    <Icon name="reports" size={14} />
+                    <span>PDF (.pdf)</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         }
       />
 
       <div className="page-toolbar card" style={{ marginTop: 0 }}>
-        <div className="period-selector" role="radiogroup" aria-label="Time period">
-          {PERIOD_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
-              role="radio"
-              aria-checked={period === key}
-              onClick={() => setPeriod(key)}
-            >
-              {PERIOD_LABELS[key]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`btn btn--segment${period === 'custom' ? ' btn--segment-active' : ''}`}
-            role="radio"
-            aria-checked={period === 'custom'}
-            onClick={() => setPeriod('custom')}
-          >
-            Custom
-          </button>
-        </div>
-
-        {period === 'custom' && (
-          <div className="period-custom">
-            <label className="field__label" htmlFor="report-from">From</label>
-            <input
-              id="report-from"
-              type="date"
-              className="text-input text-input--sm"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-            />
-            <label className="field__label" htmlFor="report-to">To</label>
-            <input
-              id="report-to"
-              type="date"
-              className="text-input text-input--sm"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-            />
-          </div>
-        )}
-
-        <div className="dash-period-meta">
-          <span className="dash-range-pill">{periodLabel}</span>
-        </div>
+        <GlobalDateRangeSelector />
       </div>
 
       {customInvalid ? (
@@ -248,7 +239,12 @@ function Reports(): React.JSX.Element {
                 <span className="stat-card__label">Operating Revenue</span>
                 <div className="stat-card__icon"><Icon name="arrowUp" size={17} /></div>
               </div>
-              <span className="stat-card__value stat-card__value--positive">{formatCurrency(totals.income, currencyCode)}</span>
+              <span
+                className="stat-card__value stat-card__value--positive"
+                title={formatCurrency(metrics.totalIncome, currencyCode)}
+              >
+                {formatCompactCurrency(metrics.totalIncome, currencyCode)}
+              </span>
               <div className="stat-card__footer">
                 <span className="stat-card__subtext">Gross revenue inflows</span>
               </div>
@@ -259,7 +255,12 @@ function Reports(): React.JSX.Element {
                 <span className="stat-card__label">Operating Expenses</span>
                 <div className="stat-card__icon"><Icon name="arrowDown" size={17} /></div>
               </div>
-              <span className="stat-card__value stat-card__value--negative">{formatCurrency(totals.expense, currencyCode)}</span>
+              <span
+                className="stat-card__value stat-card__value--negative"
+                title={formatCurrency(metrics.totalExpenses, currencyCode)}
+              >
+                {formatCompactCurrency(metrics.totalExpenses, currencyCode)}
+              </span>
               <div className="stat-card__footer">
                 <span className="stat-card__subtext">Total operational burn</span>
               </div>
@@ -270,8 +271,11 @@ function Reports(): React.JSX.Element {
                 <span className="stat-card__label">Net Operating Margin</span>
                 <div className="stat-card__icon"><Icon name="wallet" size={17} /></div>
               </div>
-              <span className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                {formatCurrency(metrics.netProfit, currencyCode)}
+              <span
+                className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
+                title={formatCurrency(metrics.netProfit, currencyCode)}
+              >
+                {formatCompactCurrency(metrics.netProfit, currencyCode)}
               </span>
               <div className="stat-card__footer">
                 <span className={`stat-card__badge ${metrics.netProfit >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>

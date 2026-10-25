@@ -21,7 +21,7 @@ function Sidebar({ onQuickAddIncome, onQuickAddExpense }: SidebarProps): React.J
         </div>
         <div className="sidebar__brand-text">
           <span className="sidebar__name">{appName}</span>
-          <span className="sidebar__version-tag">Local Vault</span>
+          <span className="sidebar__version-tag">LOCAL VAULT</span>
         </div>
       </div>
 

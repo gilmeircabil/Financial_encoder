@@ -6,16 +6,11 @@ import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency } from '../../utils/currency'
+import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
 import { computeFinance } from '../../lib/finance'
-import {
-  customRangeInvalid,
-  formatMonth,
-  PERIOD_KEYS,
-  PERIOD_LABELS,
-  periodRange,
-  type PeriodKey,
-} from '../../utils/periods'
+import { useDateRange } from '../../contexts/DateRangeContext'
+import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
+import { formatMonth } from '../../utils/periods'
 import { monthlyToCashFlowChartData } from '../../utils/chart'
 import { logToMain } from '../../services/logger'
 import type {
@@ -29,9 +24,9 @@ function CashFlow(): React.JSX.Element {
   const { success, error: toastError } = useToast()
   const currencyCode = settings?.currency ?? 'PHP'
 
-  const [period, setPeriod] = useState<PeriodKey>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const { period, setPeriod, range, customInvalid } = useDateRange()
+
+
 
   const [totals, setTotals] = useState<CalculationTotals | null>(null)
   const [monthly, setMonthly] = useState<MonthlySummary[]>([])
@@ -39,8 +34,8 @@ function CashFlow(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
 
-  const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo])
-  const customInvalid = customRangeInvalid(customFrom, customTo)
+
+
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -136,59 +131,9 @@ function CashFlow(): React.JSX.Element {
         }
       />
 
-      {/* Period selector */}
       <div className="card page-toolbar">
-        <div className="period-selector" role="radiogroup" aria-label="Time period">
-          {PERIOD_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
-              role="radio"
-              aria-checked={period === key}
-              onClick={() => setPeriod(key)}
-            >
-              {PERIOD_LABELS[key]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`btn btn--segment${period === 'custom' ? ' btn--segment-active' : ''}`}
-            role="radio"
-            aria-checked={period === 'custom'}
-            onClick={() => setPeriod('custom')}
-          >
-            Custom
-          </button>
-        </div>
-
-        {period === 'custom' && (
-          <div className="period-custom">
-            <label className="field__label" htmlFor="cf-from">From</label>
-            <input
-              id="cf-from"
-              type="date"
-              className="text-input text-input--sm"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-            />
-            <label className="field__label" htmlFor="cf-to">To</label>
-            <input
-              id="cf-to"
-              type="date"
-              className="text-input text-input--sm"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-            />
-          </div>
-        )}
+        <GlobalDateRangeSelector />
       </div>
-
-      {customInvalid ? (
-        <div role="alert" className="notice notice--error">
-          The "From" date must be on or before the "To" date.
-        </div>
-      ) : null}
 
       {error ? (
         <div role="alert" className="notice notice--error">{error}</div>
@@ -206,9 +151,7 @@ function CashFlow(): React.JSX.Element {
                 <Icon name="arrowUp" size={17} />
               </div>
             </div>
-            <span className="stat-card__value stat-card__value--positive">
-              {formatCurrency(inflows, currencyCode)}
-            </span>
+            <span className="stat-card__value stat-card__value--positive" title={formatCurrency(inflows, currencyCode)}>{formatCompactCurrency(inflows, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__subtext">Income + Capital Injections</span>
             </div>
@@ -221,9 +164,7 @@ function CashFlow(): React.JSX.Element {
                 <Icon name="arrowDown" size={17} />
               </div>
             </div>
-            <span className="stat-card__value stat-card__value--negative">
-              {formatCurrency(outflows, currencyCode)}
-            </span>
+            <span className="stat-card__value stat-card__value--negative" title={formatCurrency(outflows, currencyCode)}>{formatCompactCurrency(outflows, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__subtext">Expenses + Owner Withdrawals</span>
             </div>
@@ -236,9 +177,7 @@ function CashFlow(): React.JSX.Element {
                 <Icon name="wallet" size={17} />
               </div>
             </div>
-            <span className={`stat-card__value ${netCash >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-              {formatCurrency(netCash, currencyCode)}
-            </span>
+            <span className={`stat-card__value ${netCash >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`} title={formatCurrency(netCash, currencyCode)}>{formatCompactCurrency(netCash, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className={`stat-card__badge ${netCash >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
                 <span>{netCash >= 0 ? 'Positive Inflow' : 'Negative Outflow'}</span>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
 import TypeToConfirmModal from '../../components/ui/TypeToConfirmModal'
@@ -9,16 +9,12 @@ import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency } from '../../utils/currency'
+import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
+import { useDateRange } from '../../contexts/DateRangeContext'
+import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
 import { computeFinance } from '../../lib/finance'
 import { formatDate, parseISODate } from '../../utils/dates'
-import {
-  customRangeInvalid,
-  PERIOD_KEYS,
-  PERIOD_LABELS,
-  periodRange,
-  type PeriodKey,
-} from '../../utils/periods'
+
 import { logToMain } from '../../services/logger'
 import type {
   CalculationFilter,
@@ -40,9 +36,7 @@ function Capital(): React.JSX.Element {
   const currencyCode = settings?.currency ?? 'PHP'
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
 
-  const [period, setPeriod] = useState<PeriodKey>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const { range, customInvalid } = useDateRange()
 
   const [totals, setTotals] = useState<CalculationTotals | null>(null)
   const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>([])
@@ -61,8 +55,7 @@ function Capital(): React.JSX.Element {
   const [deleting, setDeleting] = useState<Transaction | null>(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
 
-  const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo])
-  const customInvalid = customRangeInvalid(customFrom, customTo)
+  
 
   useEffect(() => {
     let cancelled = false
@@ -139,7 +132,7 @@ function Capital(): React.JSX.Element {
 
   useEffect(() => {
     setPage(1)
-  }, [period, customFrom, customTo, categoryFilter])
+  }, [range, categoryFilter])
 
   const openEdit = (tx: Transaction): void => {
     setEditing(tx)
@@ -219,53 +212,8 @@ function Capital(): React.JSX.Element {
         }
       />
 
-      {/* Period selector */}
       <div className="card page-toolbar">
-        <div className="period-selector" role="radiogroup" aria-label="Time period">
-          {PERIOD_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
-              role="radio"
-              aria-checked={period === key}
-              onClick={() => setPeriod(key)}
-            >
-              {PERIOD_LABELS[key]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`btn btn--segment${period === 'custom' ? ' btn--segment-active' : ''}`}
-            role="radio"
-            aria-checked={period === 'custom'}
-            onClick={() => setPeriod('custom')}
-          >
-            Custom
-          </button>
-        </div>
-
-        {period === 'custom' && (
-          <div className="period-custom">
-            <label className="field__label" htmlFor="cap-from">From</label>
-            <input
-              id="cap-from"
-              type="date"
-              className="text-input text-input--sm"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-            />
-            <label className="field__label" htmlFor="cap-to">To</label>
-            <input
-              id="cap-to"
-              type="date"
-              className="text-input text-input--sm"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-            />
-          </div>
-        )}
-
+        <GlobalDateRangeSelector />
         {categories.length > 0 && (
           <label className="field__label page-cat-filter" htmlFor="capital-cat-filter">
             <span className="sr-only">Filter by category</span>
@@ -284,12 +232,6 @@ function Capital(): React.JSX.Element {
         )}
       </div>
 
-      {customInvalid ? (
-        <div role="alert" className="notice notice--error">
-          The "From" date must be on or before the "To" date.
-        </div>
-      ) : null}
-
       {error ? (
         <div role="alert" className="notice notice--error">{error}</div>
       ) : null}
@@ -306,9 +248,7 @@ function Capital(): React.JSX.Element {
                 <Icon name="capital" size={17} />
               </div>
             </div>
-            <span className={`stat-card__value ${netCapital >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-              {formatCurrency(netCapital, currencyCode)}
-            </span>
+            <span className={`stat-card__value ${netCapital >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`} title={formatCurrency(netCapital, currencyCode)}>{formatCompactCurrency(netCapital, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__badge stat-card__badge--ok">
                 <span>{retention.toFixed(1)}% retained</span>
@@ -323,9 +263,7 @@ function Capital(): React.JSX.Element {
                 <Icon name="arrowUp" size={17} />
               </div>
             </div>
-            <span className="stat-card__value stat-card__value--positive">
-              {formatCurrency(totals.capital, currencyCode)}
-            </span>
+            <span className="stat-card__value stat-card__value--positive" title={formatCurrency(metrics.capitalAdded, currencyCode)}>{formatCompactCurrency(metrics.capitalAdded, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__subtext">Contributions &amp; injections</span>
             </div>
@@ -338,9 +276,7 @@ function Capital(): React.JSX.Element {
                 <Icon name="arrowDown" size={17} />
               </div>
             </div>
-            <span className="stat-card__value stat-card__value--negative">
-              {formatCurrency(totals.withdrawal, currencyCode)}
-            </span>
+            <span className="stat-card__value stat-card__value--negative" title={formatCurrency(metrics.totalWithdrawals, currencyCode)}>{formatCompactCurrency(metrics.totalWithdrawals, currencyCode)}</span>
             <div className="stat-card__footer">
               <span className="stat-card__subtext">Owner disbursements</span>
             </div>

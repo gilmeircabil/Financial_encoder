@@ -5,18 +5,13 @@ import CategoryProgressList from '../../components/ui/CategoryProgressList'
 import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
-import { formatCurrency, formatIntegerCurrency } from '../../utils/currency'
+import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
 import { formatDate, parseISODate } from '../../utils/dates'
 import { cashFlowPointsToChartData } from '../../utils/chart'
 import { computeFinance } from '../../lib/finance'
-import {
-  cashFlowGranularity,
-  customRangeInvalid,
-  PERIOD_KEYS,
-  PERIOD_LABELS,
-  periodRange,
-  type PeriodKey,
-} from '../../utils/periods'
+import { cashFlowGranularity } from '../../utils/periods'
+import { useDateRange } from '../../contexts/DateRangeContext'
+import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
 import { logToMain } from '../../services/logger'
 import type {
   CalculationFilter,
@@ -32,9 +27,7 @@ function Dashboard(): React.JSX.Element {
   const currencyCode = settings?.currency ?? 'PHP'
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
 
-  const [period, setPeriod] = useState<PeriodKey>('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const { range, periodLabel, customInvalid } = useDateRange()
 
   const [totals, setTotals] = useState<CalculationTotals | null>(null)
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([])
@@ -43,9 +36,7 @@ function Dashboard(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo])
   const granularity = useMemo(() => cashFlowGranularity(range), [range])
-  const customInvalid = customRangeInvalid(customFrom, customTo)
 
   /** Single source of truth applied to every dashboard query. */
   const calcFilter = useMemo<CalculationFilter>(
@@ -116,78 +107,9 @@ function Dashboard(): React.JSX.Element {
     [breakdown],
   )
 
-  const periodLabel = useMemo(() => {
-    const from = range.date_from ? formatDate(parseISODate(range.date_from), dateFormat) : null
-    const to = range.date_to ? formatDate(parseISODate(range.date_to), dateFormat) : null
-    if (from && to) {
-      return `${from} – ${to}`
-    }
-    if (from) {
-      return `From ${from}`
-    }
-    if (to) {
-      return `Up to ${to}`
-    }
-    return 'All time'
-  }, [range, dateFormat])
-
   return (
     <div className="page dashboard-page">
-      {/* Sleek Period Selector Bar */}
-      <div className="dash-toolbar-strip">
-        <div className="period-selector period-selector--pills" role="radiogroup" aria-label="Time period">
-          {PERIOD_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`dash-period-pill${period === key ? ' dash-period-pill--active' : ''}`}
-              role="radio"
-              aria-checked={period === key}
-              onClick={() => setPeriod(key)}
-            >
-              {PERIOD_LABELS[key]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`dash-period-pill${period === 'custom' ? ' dash-period-pill--active' : ''}`}
-            role="radio"
-            aria-checked={period === 'custom'}
-            onClick={() => setPeriod('custom')}
-          >
-            Custom
-          </button>
-        </div>
-
-        {period === 'custom' && (
-          <div className="period-custom">
-            <label className="field__label" htmlFor="dash-from">From</label>
-            <input
-              id="dash-from"
-              type="date"
-              className="text-input text-input--sm"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-            />
-            <label className="field__label" htmlFor="dash-to">To</label>
-            <input
-              id="dash-to"
-              type="date"
-              className="text-input text-input--sm"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-            />
-          </div>
-        )}
-
-        <span className="dash-range-pill">{periodLabel}</span>
-      </div>
-
-      {customInvalid ? (
-        <div role="alert" className="notice notice--error">
-          The "From" date must be on or before the "To" date.
-        </div>
-      ) : null}
+      <GlobalDateRangeSelector className="dash-toolbar-strip" />
 
       {error ? (
         <div role="alert" className="notice notice--error">{error}</div>
@@ -209,8 +131,11 @@ function Dashboard(): React.JSX.Element {
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                  {formatIntegerCurrency(metrics.netProfit, currencyCode)}
+                <span
+                  className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
+                  title={formatCurrency(metrics.netProfit, currencyCode)}
+                >
+                  {formatCompactCurrency(metrics.netProfit, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
                   <span className={`stat-card__badge ${metrics.netProfit >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
@@ -227,8 +152,11 @@ function Dashboard(): React.JSX.Element {
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className={`stat-card__value ${metrics.cashPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                  {formatIntegerCurrency(metrics.cashPosition, currencyCode)}
+                <span
+                  className={`stat-card__value ${metrics.cashPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
+                  title={formatCurrency(metrics.cashPosition, currencyCode)}
+                >
+                  {formatCompactCurrency(metrics.cashPosition, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
                   <span className={`stat-card__badge ${metrics.cashPosition >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
@@ -245,8 +173,11 @@ function Dashboard(): React.JSX.Element {
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className="stat-card__value stat-card__value--positive">
-                  {formatIntegerCurrency(metrics.totalIncome, currencyCode)}
+                <span
+                  className="stat-card__value stat-card__value--positive"
+                  title={formatCurrency(metrics.totalIncome, currencyCode)}
+                >
+                  {formatCompactCurrency(metrics.totalIncome, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
                   {metrics.totalIncome > 0 ? (
@@ -268,8 +199,11 @@ function Dashboard(): React.JSX.Element {
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className="stat-card__value stat-card__value--negative">
-                  {formatIntegerCurrency(metrics.totalExpenses, currencyCode)}
+                <span
+                  className="stat-card__value stat-card__value--negative"
+                  title={formatCurrency(metrics.totalExpenses, currencyCode)}
+                >
+                  {formatCompactCurrency(metrics.totalExpenses, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
                   {metrics.totalIncome > 0 ? (
@@ -290,8 +224,11 @@ function Dashboard(): React.JSX.Element {
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className={`stat-card__value ${metrics.netEquity >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                  {formatIntegerCurrency(metrics.netEquity, currencyCode)}
+                <span
+                  className={`stat-card__value ${metrics.netEquity >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
+                  title={formatCurrency(metrics.netEquity, currencyCode)}
+                >
+                  {formatCompactCurrency(metrics.netEquity, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
                   <span className="stat-card__subtext">
@@ -306,9 +243,9 @@ function Dashboard(): React.JSX.Element {
               <div className="dash-cf__heading">
                 <div>
                   <h3 className="card__title">Income vs. Expenses</h3>
-                  <span className="dash-cf__subtitle">Smooth cash flow trajectory over selected timeline</span>
+                  <span className="dash-cf__subtitle">Monthly cash flow comparison over selected timeline</span>
                 </div>
-                <span className="dash-range-pill">{periodLabel}</span>
+                <span className="date-range-plain-text">{periodLabel}</span>
               </div>
 
               <CashFlowChart data={chartData} currencyCode={currencyCode} height={310} />

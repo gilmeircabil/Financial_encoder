@@ -3,6 +3,7 @@ import type { ErrorInfo, ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SettingsProvider } from './contexts/SettingsContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { DateRangeProvider } from './contexts/DateRangeContext'
 import { api, ApiError } from './services/api'
 import { installGlobalErrorForwarding, logToMain } from './services/logger'
 import AppShell from './components/layout/AppShell'
@@ -177,11 +178,13 @@ function App(): React.JSX.Element {
     <AppErrorBoundary>
       <SettingsProvider>
         <ToastProvider>
-          <HashRouter>
-            <BootstrapGate>
-              <SystemContent />
-            </BootstrapGate>
-          </HashRouter>
+          <DateRangeProvider>
+            <HashRouter>
+              <BootstrapGate>
+                <SystemContent />
+              </BootstrapGate>
+            </HashRouter>
+          </DateRangeProvider>
         </ToastProvider>
       </SettingsProvider>
     </AppErrorBoundary>
