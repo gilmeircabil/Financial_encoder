@@ -1735,6 +1735,13 @@
   flex-shrink: 0;
 }
 
+.chart-tooltip__line {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 /* Spline Cash Flow Chart -------------------------------------------------- */
 
 .cf-spline-wrap {
@@ -1772,6 +1779,13 @@
   width: 10px;
   height: 10px;
   border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.cf-spline-legend__line {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 

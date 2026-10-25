@@ -124,3 +124,142 @@ export function computeChartYDomain(values: number[]): [number, number] {
 
   return [min < 0 ? min - padding : 0, max > 0 ? max + padding : 0]
 }
+
+/** Curated palette of stable, distinct, and accessible colors for financial categories. */
+export const CATEGORY_PALETTE: readonly string[] = [
+  '#8b5cf6', // Finly Purple
+  '#06b6d4', // Cyan
+  '#3b82f6', // Blue
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ec4899', // Pink
+  '#a3e635', // Lime
+  '#f97316', // Orange
+  '#6366f1', // Indigo
+  '#14b8a6', // Teal
+  '#84cc16', // Bright Lime
+  '#d946ef', // Fuchsia
+  '#0ea5e9', // Sky
+  '#e11d48', // Crimson
+  '#eab308', // Yellow
+  '#a855f7', // Violet
+  '#22c55e', // Green
+  '#2dd4bf', // Mint
+  '#fb923c', // Tangerine
+  '#818cf8', // Periwinkle
+  '#4ade80', // Light Green
+  '#f43f5e', // Rose
+  '#38bdf8', // Light Blue
+  '#c084fc', // Lilac
+]
+
+/**
+ * Maps a category name deterministically to a stable color in CATEGORY_PALETTE
+ * using an FNV-1a hash. 'Other' always maps to neutral slate.
+ */
+export function getCategoryColor(categoryName: string): string {
+  if (!categoryName) return '#94a3b8'
+  const norm = categoryName.trim().toLowerCase()
+  if (norm === 'other' || norm === 'others') {
+    return '#94a3b8'
+  }
+  let hash = 2166136261
+  for (let i = 0; i < norm.length; i++) {
+    hash ^= norm.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  const index = (hash >>> 0) % CATEGORY_PALETTE.length
+  return CATEGORY_PALETTE[index]
+}
+
+export interface NiceTicksResult {
+  domain: [number, number]
+  ticks: number[]
+}
+
+/**
+ * Computes human-friendly round Y-axis ticks and domain.
+ * Generates round numbers like 0, 10M, 20M, 30M instead of fractional ticks like 9.5M, 19M, 28.5M.
+ */
+export function computeNiceTicks(min: number, max: number, maxTicks = 5): NiceTicksResult {
+  const safeMin = Number.isFinite(min) ? min : 0
+  const safeMax = Number.isFinite(max) ? max : 0
+
+  if (safeMin === safeMax) {
+    if (safeMin === 0) {
+      return { domain: [0, 100], ticks: [0, 25, 50, 75, 100] }
+    }
+    if (safeMin > 0) {
+      const step = Math.pow(10, Math.floor(Math.log10(safeMin)))
+      const niceMax = Math.ceil((safeMin * 1.2) / step) * step
+      return { domain: [0, niceMax], ticks: [0, safeMin, niceMax] }
+    }
+    const step = Math.pow(10, Math.floor(Math.log10(Math.abs(safeMin))))
+    const niceMin = Math.floor((safeMin * 1.2) / step) * step
+    return { domain: [niceMin, 0], ticks: [niceMin, safeMin, 0] }
+  }
+
+  const span = safeMax - safeMin
+  const rawStep = span / Math.max(1, maxTicks - 1)
+  const power = Math.floor(Math.log10(rawStep))
+  const magnitude = Math.pow(10, power)
+  const fraction = rawStep / magnitude
+
+  let niceFraction = 1
+  if (fraction <= 1) niceFraction = 1
+  else if (fraction <= 2) niceFraction = 2
+  else if (fraction <= 2.5) niceFraction = 2.5
+  else if (fraction <= 5) niceFraction = 5
+  else niceFraction = 10
+
+  const step = niceFraction * magnitude
+  const niceMin = Math.floor(safeMin / step) * step
+  const niceMax = Math.ceil(safeMax / step) * step
+
+  const ticks: number[] = []
+  const count = Math.round((niceMax - niceMin) / step)
+  for (let i = 0; i <= count; i++) {
+    const val = Number((niceMin + i * step).toPrecision(12))
+    ticks.push(val)
+  }
+
+  return { domain: [niceMin, niceMax], ticks }
+}
+
+/**
+ * Trims trailing zero-activity data points from the end of a time series
+ * so the chart's x-axis domain fits the actual data instead of running blank to the edge.
+ */
+export function trimTrailingEmptyCashFlowPoints<
+  T extends { inflow: number; outflow: number; net?: number }
+>(points: T[]): T[] {
+  let lastActive = -1
+  for (let i = points.length - 1; i >= 0; i--) {
+    const p = points[i]
+    if (p.inflow !== 0 || p.outflow !== 0 || (p.net !== undefined && p.net !== 0)) {
+      lastActive = i
+      break
+    }
+  }
+  if (lastActive === -1) {
+    return points
+  }
+  return points.slice(0, lastActive + 1)
+}
+
+/**
+ * Trims trailing zero-amount items from a monthly time series.
+ */
+export function trimTrailingEmptyMonthly<T extends { amount: number }>(points: T[]): T[] {
+  let lastActive = -1
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].amount !== 0) {
+      lastActive = i
+      break
+    }
+  }
+  if (lastActive === -1) {
+    return points
+  }
+  return points.slice(0, lastActive + 1)
+}

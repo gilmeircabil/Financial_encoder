@@ -1,7 +1,7 @@
-import { useId } from 'react'
+import { useMemo } from 'react'
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -9,7 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { MonthlySummary } from '../../../electron/types/ipc'
-import { computeChartYDomain } from '../../utils/chart'
+import { computeNiceTicks, trimTrailingEmptyMonthly } from '../../utils/chart'
 import { formatCompactCurrency, formatCurrency, toFiniteNumber } from '../../utils/currency'
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -121,20 +121,26 @@ export interface MonthlyAmountChartProps {
 }
 
 function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyAmountChartProps): React.JSX.Element {
-  const uid = useId().replace(/:/g, '')
-  const gradId = `monthly-grad-${kind}-${uid}`
   const config = KIND_CONFIG[kind]
 
-  const chartData: MonthlyChartDatum[] = data.map((row) => {
-    const { month, fullLabel } = formatLabel(row.month)
-    return {
-      month,
-      fullLabel,
-      amount: Math.max(0, toFiniteNumber(row[kind])),
-    }
-  })
+  const chartData: MonthlyChartDatum[] = useMemo(() => {
+    const raw = data.map((row) => {
+      const { month, fullLabel } = formatLabel(row.month)
+      return {
+        month,
+        fullLabel,
+        amount: Math.max(0, toFiniteNumber(row[kind])),
+      }
+    })
+    return trimTrailingEmptyMonthly(raw)
+  }, [data, kind])
 
   const hasMovement = chartData.some((datum) => datum.amount !== 0)
+
+  const { domain: yDomain, ticks: niceTicks } = useMemo(() => {
+    const maxVal = Math.max(0, ...chartData.map((d) => d.amount))
+    return computeNiceTicks(0, maxVal)
+  }, [chartData])
 
   if (chartData.length === 0 || !hasMovement) {
     return (
@@ -144,9 +150,6 @@ function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyA
       </div>
     )
   }
-
-  const [, maxVal] = computeChartYDomain(chartData.map((d) => d.amount))
-  const yDomain: [number, number] = [0, Math.max(100, maxVal)]
 
   return (
     <div className="cf-spline-wrap">
@@ -160,13 +163,7 @@ function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyA
       </div>
 
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={chartData} margin={{ top: 14, right: 16, left: 4, bottom: 4 }}>
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={config.color} stopOpacity={0.28} />
-              <stop offset="95%" stopColor={config.color} stopOpacity={0.0} />
-            </linearGradient>
-          </defs>
+        <BarChart data={chartData} margin={{ top: 14, right: 16, left: 16, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="month"
@@ -183,23 +180,21 @@ function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyA
             axisLine={false}
             width={68}
             domain={yDomain}
+            ticks={niceTicks}
             tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
           />
           <Tooltip
-            cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1, strokeDasharray: '4 4' }}
+            cursor={{ fill: 'var(--bg-card-hover)', opacity: 0.4 }}
             content={<MonthlyTooltip currencyCode={currencyCode} kind={kind} />}
           />
-          <Area
-            type="monotone"
+          <Bar
             dataKey="amount"
             name={config.label}
-            stroke={config.color}
-            strokeWidth={2.5}
-            fill={`url(#${gradId})`}
-            dot={false}
-            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2.5, fill: config.color }}
+            fill={config.color}
+            radius={[4, 4, 0, 0]}
+            maxBarSize={48}
           />
-        </AreaChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   )

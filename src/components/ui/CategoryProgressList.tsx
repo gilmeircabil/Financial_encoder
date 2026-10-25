@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatCompactCurrency, formatCurrency } from '../../utils/currency'
+import { getCategoryColor } from '../../utils/chart'
 import type { CategoryBreakdown } from '../../../electron/types/ipc'
 
 interface CategoryProgressListProps {
@@ -11,15 +12,6 @@ interface CategoryProgressListProps {
   maxItems?: number
   centerLabel?: string
 }
-
-const DONUT_PALETTE = [
-  '#a3e635', // Finly Lime
-  '#8b5cf6', // Finly Purple
-  '#06b6d4', // Finly Teal
-  '#3b82f6', // Finly Blue
-  '#f59e0b', // Finly Amber
-  '#ec4899', // Finly Rose
-]
 
 interface DonutSlice {
   id: number | string
@@ -45,9 +37,41 @@ export default function CategoryProgressList({
     if (items.length === 0 || totalSum <= 0) {
       return []
     }
-    const top = items.slice(0, maxItems)
-    const rest = items.slice(maxItems)
-    const result: DonutSlice[] = top.map((item, idx) => {
+
+    // Hide zero slices (e.g. Equipment 0% which renders an orphan stub)
+    const positive = items.filter((item) => Math.abs(item.total) > 0)
+    if (positive.length === 0) {
+      return []
+    }
+
+    // Separate slices: under 1% are grouped into "Other"
+    const qualified: CategoryBreakdown[] = []
+    let otherValue = 0
+    let otherCount = 0
+
+    for (const item of positive) {
+      const val = Math.abs(item.total)
+      const pct = (val / totalSum) * 100
+      if (pct < 1) {
+        otherValue += val
+        otherCount += item.count
+      } else {
+        qualified.push(item)
+      }
+    }
+
+    // Sort qualified items descending by value
+    qualified.sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
+
+    // Top maxItems are kept; remaining overflow into "Other"
+    const top = qualified.slice(0, maxItems)
+    const overflow = qualified.slice(maxItems)
+    for (const item of overflow) {
+      otherValue += Math.abs(item.total)
+      otherCount += item.count
+    }
+
+    const result: DonutSlice[] = top.map((item) => {
       const value = Math.abs(item.total)
       return {
         id: item.category_id,
@@ -55,23 +79,21 @@ export default function CategoryProgressList({
         value,
         percent: (value / totalSum) * 100,
         count: item.count,
-        color: DONUT_PALETTE[idx % DONUT_PALETTE.length],
+        color: getCategoryColor(item.category_name),
       }
     })
-    if (rest.length > 0) {
-      const restVal = rest.reduce((acc, curr) => acc + Math.abs(curr.total), 0)
-      const restCount = rest.reduce((acc, curr) => acc + curr.count, 0)
-      if (restVal > 0) {
-        result.push({
-          id: 'other',
-          name: 'Other',
-          value: restVal,
-          percent: (restVal / totalSum) * 100,
-          count: restCount,
-          color: '#94a3b8',
-        })
-      }
+
+    if (otherValue > 0) {
+      result.push({
+        id: 'other',
+        name: 'Other',
+        value: otherValue,
+        percent: (otherValue / totalSum) * 100,
+        count: otherCount,
+        color: '#94a3b8',
+      })
     }
+
     return result
   }, [items, maxItems, totalSum])
 
@@ -101,9 +123,9 @@ export default function CategoryProgressList({
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: unknown) => [
+              formatter={(value: unknown, name: unknown) => [
                 formatCurrency(Number(value) || 0, currencyCode),
-                'Amount',
+                String(name || 'Amount'),
               ]}
               contentStyle={{
                 background: 'var(--bg-surface)',

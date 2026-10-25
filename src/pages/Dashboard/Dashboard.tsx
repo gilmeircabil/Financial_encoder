@@ -248,7 +248,7 @@ function Dashboard(): React.JSX.Element {
                 <span className="date-range-plain-text">{periodLabel}</span>
               </div>
 
-              <CashFlowChart data={chartData} currencyCode={currencyCode} height={310} />
+              <CashFlowChart data={chartData} currencyCode={currencyCode} height={310} granularity={granularity} />
             </div>
           </div>
 

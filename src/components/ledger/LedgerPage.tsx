@@ -10,6 +10,7 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
+import { getCategoryColor } from '../../utils/chart'
 import { useDateRange } from '../../contexts/DateRangeContext'
 import { GlobalDateRangeSelector } from '../ui/GlobalDateRangeSelector'
 import { computeFinance } from '../../lib/finance'
@@ -405,7 +406,11 @@ export default function LedgerPage({
                     </td>
                     <td className="tx-cell-cat">
                       <span className="tx-category-tag">
-                        <span className="tx-category-dot" aria-hidden="true" />
+                        <span
+                          className="tx-category-dot"
+                          style={{ backgroundColor: getCategoryColor(tx.category_name || '') }}
+                          aria-hidden="true"
+                        />
                         <span>{tx.category_name}</span>
                       </span>
                     </td>

@@ -9,6 +9,7 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
+import { getCategoryColor } from '../../utils/chart'
 import { formatDate, parseISODate } from '../../utils/dates'
 import { useDateRange } from '../../contexts/DateRangeContext'
 import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
@@ -381,7 +382,11 @@ function Transactions(): React.JSX.Element {
                       </td>
                       <td className="tx-cell-cat">
                         <span className="tx-category-tag">
-                          <span className="tx-category-dot" aria-hidden="true" />
+                          <span
+                            className="tx-category-dot"
+                            style={{ backgroundColor: getCategoryColor(tx.category_name || '') }}
+                            aria-hidden="true"
+                          />
                           <span>{tx.category_name}</span>
                         </span>
                       </td>

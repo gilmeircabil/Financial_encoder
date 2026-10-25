@@ -1,14 +1,16 @@
-import { useId } from 'react'
+import { useMemo } from 'react'
 import {
-  Area,
-  AreaChart,
+  Bar,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import { computeChartYDomain, type CashFlowChartDatum } from '../../utils/chart'
+import type { CashFlowGranularity } from '../../../electron/types/ipc'
+import { computeNiceTicks, trimTrailingEmptyCashFlowPoints, type CashFlowChartDatum } from '../../utils/chart'
 import { formatCompactCurrency, formatCurrency, toFiniteNumber } from '../../utils/currency'
 
 export interface CashFlowLabels {
@@ -25,6 +27,7 @@ const DEFAULT_LABELS: CashFlowLabels = {
 
 const INFLOW_COLOR = '#7048e8'
 const OUTFLOW_COLOR = '#f59e0b'
+const NET_COLOR = '#38bdf8'
 
 interface TooltipPayloadItem {
   dataKey?: string | number
@@ -72,7 +75,7 @@ function CashFlowTooltip({ active, payload, label, currencyCode, labels }: CashF
       </div>
       <div className="chart-tooltip__row chart-tooltip__row--net">
         <span className="chart-tooltip__label">
-          <span className="chart-tooltip__dot" style={{ background: 'var(--text)' }} />
+          <span className="chart-tooltip__line" style={{ background: NET_COLOR }} />
           {labels.net}
         </span>
         <span className={`chart-tooltip__value ${net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
@@ -83,34 +86,49 @@ function CashFlowTooltip({ active, payload, label, currencyCode, labels }: CashF
   )
 }
 
-interface CashFlowChartProps {
+export interface CashFlowChartProps {
   data: CashFlowChartDatum[]
   currencyCode: string
   height?: number
   labels?: Partial<CashFlowLabels>
   rangeText?: string
+  granularity?: CashFlowGranularity
 }
 
-function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverrides, rangeText }: CashFlowChartProps): React.JSX.Element {
-  const uid = useId().replace(/:/g, '')
-  const inflowGradId = `inflow-grad-${uid}`
-  const outflowGradId = `outflow-grad-${uid}`
+function CashFlowChart({
+  data,
+  currencyCode,
+  height = 300,
+  labels: labelOverrides,
+  rangeText,
+  granularity = 'month',
+}: CashFlowChartProps): React.JSX.Element {
   const labels: CashFlowLabels = { ...DEFAULT_LABELS, ...labelOverrides }
 
-  const chartData = data.map((datum) => {
-    const inflow = Math.max(0, toFiniteNumber(datum.inflow))
-    const outflowAbs = Math.abs(toFiniteNumber(datum.outflow))
-    return {
-      ...datum,
-      inflow,
-      outflowAbs,
-      net: toFiniteNumber(datum.net),
-    }
-  })
+  const chartData = useMemo(() => {
+    const raw = data.map((datum) => {
+      const inflow = Math.max(0, toFiniteNumber(datum.inflow))
+      const outflowAbs = Math.abs(toFiniteNumber(datum.outflow))
+      return {
+        ...datum,
+        inflow,
+        outflowAbs,
+        net: toFiniteNumber(datum.net),
+      }
+    })
+    return trimTrailingEmptyCashFlowPoints(raw)
+  }, [data])
 
   const hasMovement = chartData.some(
     (datum) => datum.inflow !== 0 || datum.outflowAbs !== 0 || datum.net !== 0,
   )
+
+  const { domain: yDomain, ticks: niceTicks } = useMemo(() => {
+    const allVals = chartData.flatMap((datum) => [datum.inflow, datum.outflowAbs, datum.net])
+    const maxVal = Math.max(0, ...allVals)
+    const minVal = Math.min(0, ...allVals)
+    return computeNiceTicks(minVal, maxVal)
+  }, [chartData])
 
   if (chartData.length === 0 || !hasMovement) {
     return (
@@ -121,8 +139,9 @@ function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverride
     )
   }
 
-  const [, maxVal] = computeChartYDomain(chartData.flatMap((datum) => [datum.inflow, datum.outflowAbs]))
-  const yDomain: [number, number] = [0, Math.max(100, maxVal)]
+  // Use step line only if granularity is daily and series has at least 3 points.
+  // If fewer than 3 points, always render bars (never a lone dot).
+  const isDailyStep = granularity === 'day' && chartData.length >= 3
 
   return (
     <div className="cf-spline-wrap">
@@ -136,6 +155,10 @@ function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverride
             <span className="cf-spline-legend__swatch" style={{ background: OUTFLOW_COLOR }} />
             <span>{labels.outflow}</span>
           </span>
+          <span className="cf-spline-legend__item">
+            <span className="cf-spline-legend__line" style={{ background: NET_COLOR }} />
+            <span>{labels.net}</span>
+          </span>
         </div>
         {rangeText ? (
           <span className="cf-spline-legend__range">{rangeText}</span>
@@ -143,17 +166,7 @@ function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverride
       </div>
 
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={chartData} margin={{ top: 14, right: 16, left: 4, bottom: 4 }}>
-          <defs>
-            <linearGradient id={inflowGradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={INFLOW_COLOR} stopOpacity={0.28} />
-              <stop offset="95%" stopColor={INFLOW_COLOR} stopOpacity={0.0} />
-            </linearGradient>
-            <linearGradient id={outflowGradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={OUTFLOW_COLOR} stopOpacity={0.22} />
-              <stop offset="95%" stopColor={OUTFLOW_COLOR} stopOpacity={0.0} />
-            </linearGradient>
-          </defs>
+        <ComposedChart data={chartData} margin={{ top: 14, right: 16, left: 16, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="label"
@@ -170,33 +183,76 @@ function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverride
             axisLine={false}
             width={68}
             domain={yDomain}
+            ticks={niceTicks}
             tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
           />
           <Tooltip
-            cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1, strokeDasharray: '4 4' }}
+            cursor={
+              isDailyStep
+                ? { stroke: 'var(--border-strong)', strokeWidth: 1, strokeDasharray: '4 4' }
+                : { fill: 'var(--bg-card-hover)', opacity: 0.4 }
+            }
             content={<CashFlowTooltip currencyCode={currencyCode} labels={labels} />}
           />
-          <Area
-            type="monotone"
-            dataKey="inflow"
-            name={labels.inflow}
-            stroke={INFLOW_COLOR}
-            strokeWidth={2.5}
-            fill={`url(#${inflowGradId})`}
-            dot={false}
-            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2.5, fill: INFLOW_COLOR }}
-          />
-          <Area
-            type="monotone"
-            dataKey="outflowAbs"
-            name={labels.outflow}
-            stroke={OUTFLOW_COLOR}
-            strokeWidth={2.5}
-            fill={`url(#${outflowGradId})`}
-            dot={false}
-            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2.5, fill: OUTFLOW_COLOR }}
-          />
-        </AreaChart>
+          {isDailyStep ? (
+            <>
+              <Line
+                type="stepAfter"
+                dataKey="inflow"
+                name={labels.inflow}
+                stroke={INFLOW_COLOR}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5 }}
+              />
+              <Line
+                type="stepAfter"
+                dataKey="outflowAbs"
+                name={labels.outflow}
+                stroke={OUTFLOW_COLOR}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5 }}
+              />
+              <Line
+                type="stepAfter"
+                dataKey="net"
+                name={labels.net}
+                stroke={NET_COLOR}
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                dot={false}
+                activeDot={{ r: 5 }}
+              />
+            </>
+          ) : (
+            <>
+              <Bar
+                dataKey="inflow"
+                name={labels.inflow}
+                fill={INFLOW_COLOR}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={36}
+              />
+              <Bar
+                dataKey="outflowAbs"
+                name={labels.outflow}
+                fill={OUTFLOW_COLOR}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={36}
+              />
+              <Line
+                type="monotone"
+                dataKey="net"
+                name={labels.net}
+                stroke={NET_COLOR}
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: NET_COLOR }}
+                activeDot={{ r: 5 }}
+              />
+            </>
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   )
