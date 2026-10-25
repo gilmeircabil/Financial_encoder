@@ -8,6 +8,7 @@ import { useSettings } from '../../contexts/SettingsContext'
 import { formatCurrency, formatIntegerCurrency } from '../../utils/currency'
 import { formatDate, parseISODate } from '../../utils/dates'
 import { cashFlowPointsToChartData } from '../../utils/chart'
+import { computeFinance } from '../../lib/finance'
 import {
   cashFlowGranularity,
   customRangeInvalid,
@@ -104,14 +105,9 @@ function Dashboard(): React.JSX.Element {
     return () => window.removeEventListener('transaction-saved', handleSaved)
   }, [load])
 
-  const income = totals?.income ?? 0
-  const expense = totals?.expense ?? 0
-  const netPosition = income - expense
-  const netCapital = (totals?.capital ?? 0) - (totals?.withdrawal ?? 0)
-
-  // Calculations for secondary metrics
-  const savingsRate = income > 0 ? Math.max(0, ((income - expense) / income) * 100) : 0
-  const expenseRatio = income > 0 ? (expense / income) * 100 : 0
+  const metrics = useMemo(() => computeFinance(totals), [totals])
+  const expenseRatio = metrics.totalIncome > 0 ? (metrics.totalExpenses / metrics.totalIncome) * 100 : 0
+  const retention = metrics.capitalAdded > 0 ? Math.max(0, (metrics.netEquity / metrics.capitalAdded) * 100) : 0
 
   const chartData = useMemo(() => cashFlowPointsToChartData(cashFlow, granularity), [cashFlow, granularity])
 
@@ -205,40 +201,58 @@ function Dashboard(): React.JSX.Element {
           <div className="dash-main-col">
             {/* Enhanced Finly Stat KPI Cards */}
             <div className="dash-summary">
-              {/* Balance / Net Position */}
+              {/* Net Profit */}
               <div className="card stat-card stat-card--net">
                 <div className="stat-card__head">
-                  <span className="stat-card__label">Balance</span>
-                  <Link to="/cash-flow" className="stat-card__action-link" title="View Cash Flow Analysis" aria-label="View Cash Flow Analysis">
+                  <span className="stat-card__label">Net Profit</span>
+                  <Link to="/reports" className="stat-card__action-link" title="View Financial Reports" aria-label="View Financial Reports">
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className={`stat-card__value ${netPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                  {formatIntegerCurrency(netPosition, currencyCode)}
+                <span className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
+                  {formatIntegerCurrency(metrics.netProfit, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
-                  <span className={`stat-card__badge ${netPosition >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
-                    <span>{netPosition >= 0 ? 'Surplus Reserve' : 'Deficit'}</span>
+                  <span className={`stat-card__badge ${metrics.netProfit >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
+                    <span>{metrics.totalIncome > 0 ? `${(metrics.marginRate * 100).toFixed(1)}% margin` : (metrics.netProfit >= 0 ? 'Profitable' : 'Deficit')}</span>
                   </span>
                 </div>
               </div>
 
-              {/* Salary / Total Income */}
+              {/* Cash Position */}
+              <div className="card stat-card stat-card--cash">
+                <div className="stat-card__head">
+                  <span className="stat-card__label">Cash Position</span>
+                  <Link to="/cash-flow" className="stat-card__action-link" title="View Cash Flow Analysis" aria-label="View Cash Flow Analysis">
+                    <Icon name="arrowUpRight" size={14} />
+                  </Link>
+                </div>
+                <span className={`stat-card__value ${metrics.cashPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
+                  {formatIntegerCurrency(metrics.cashPosition, currencyCode)}
+                </span>
+                <div className="stat-card__footer">
+                  <span className={`stat-card__badge ${metrics.cashPosition >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
+                    <span>{metrics.cashPosition >= 0 ? 'Positive Inflow' : 'Negative Outflow'}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Income */}
               <div className="card stat-card stat-card--income">
                 <div className="stat-card__head">
-                  <span className="stat-card__label">Salary &amp; Income</span>
+                  <span className="stat-card__label">Income</span>
                   <Link to="/income" className="stat-card__action-link" title="View Income Breakdown" aria-label="View Income Breakdown">
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
                 <span className="stat-card__value stat-card__value--positive">
-                  {formatIntegerCurrency(income, currencyCode)}
+                  {formatIntegerCurrency(metrics.totalIncome, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
-                  {income > 0 ? (
+                  {metrics.totalIncome > 0 ? (
                     <span className="stat-card__badge stat-card__badge--ok">
                       <Icon name="trendingUp" size={12} />
-                      <span>{savingsRate.toFixed(1)}% saved</span>
+                      <span>{(metrics.marginRate * 100).toFixed(1)}% margin</span>
                     </span>
                   ) : (
                     <span className="stat-card__subtext">No income in range</span>
@@ -246,7 +260,7 @@ function Dashboard(): React.JSX.Element {
                 </div>
               </div>
 
-              {/* Total Expenses */}
+              {/* Expenses */}
               <div className="card stat-card stat-card--expense">
                 <div className="stat-card__head">
                   <span className="stat-card__label">Expenses</span>
@@ -255,10 +269,10 @@ function Dashboard(): React.JSX.Element {
                   </Link>
                 </div>
                 <span className="stat-card__value stat-card__value--negative">
-                  {formatIntegerCurrency(expense, currencyCode)}
+                  {formatIntegerCurrency(metrics.totalExpenses, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
-                  {income > 0 ? (
+                  {metrics.totalIncome > 0 ? (
                     <span className={`stat-card__badge ${expenseRatio > 80 ? 'stat-card__badge--warn' : 'stat-card__badge--neutral'}`}>
                       <span>{expenseRatio.toFixed(1)}% of income</span>
                     </span>
@@ -268,19 +282,21 @@ function Dashboard(): React.JSX.Element {
                 </div>
               </div>
 
-              {/* Savings / Net Capital */}
+              {/* Capital & Equity */}
               <div className="card stat-card stat-card--capital">
                 <div className="stat-card__head">
-                  <span className="stat-card__label">Savings &amp; Capital</span>
+                  <span className="stat-card__label">Capital &amp; Equity</span>
                   <Link to="/capital" className="stat-card__action-link" title="View Capital Structure" aria-label="View Capital Structure">
                     <Icon name="arrowUpRight" size={14} />
                   </Link>
                 </div>
-                <span className={`stat-card__value ${netCapital >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                  {formatIntegerCurrency(netCapital, currencyCode)}
+                <span className={`stat-card__value ${metrics.netEquity >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
+                  {formatIntegerCurrency(metrics.netEquity, currencyCode)}
                 </span>
                 <div className="stat-card__footer">
-                  <span className="stat-card__subtext">Equity &amp; investments</span>
+                  <span className="stat-card__subtext">
+                    {metrics.capitalAdded > 0 ? `${retention.toFixed(1)}% retained` : 'Equity & investments'}
+                  </span>
                 </div>
               </div>
             </div>

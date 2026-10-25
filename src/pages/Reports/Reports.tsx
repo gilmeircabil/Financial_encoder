@@ -8,6 +8,7 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
+import { computeFinance } from '../../lib/finance'
 import {
   customRangeInvalid,
   formatMonth,
@@ -114,9 +115,8 @@ function Reports(): React.JSX.Element {
     }
   }
 
-  // Executive summary metrics
-  const netIncome = totals ? totals.income - totals.expense : 0
-  const savingsRate = totals && totals.income > 0 ? (netIncome / totals.income) * 100 : 0
+  // Executive summary metrics via shared finance engine
+  const metrics = useMemo(() => computeFinance(totals), [totals])
   const expenseCategories = useMemo(() => breakdown.filter((b) => b.type === 'expense'), [breakdown])
   const incomeCategories = useMemo(() => breakdown.filter((b) => b.type === 'income'), [breakdown])
 
@@ -270,12 +270,12 @@ function Reports(): React.JSX.Element {
                 <span className="stat-card__label">Net Operating Margin</span>
                 <div className="stat-card__icon"><Icon name="wallet" size={17} /></div>
               </div>
-              <span className={`stat-card__value ${netIncome >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                {formatCurrency(netIncome, currencyCode)}
+              <span className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
+                {formatCurrency(metrics.netProfit, currencyCode)}
               </span>
               <div className="stat-card__footer">
-                <span className={`stat-card__badge ${netIncome >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
-                  <span>{savingsRate.toFixed(1)}% margin rate</span>
+                <span className={`stat-card__badge ${metrics.netProfit >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
+                  <span>{(metrics.marginRate * 100).toFixed(1)}% margin rate</span>
                 </span>
               </div>
             </div>
@@ -301,16 +301,16 @@ function Reports(): React.JSX.Element {
                 <tbody>
                   <tr>
                     <td>Operating Income</td>
-                    <td className="ib-table__right cf-positive">+{formatCurrency(totals.income, currencyCode)}</td>
+                    <td className="ib-table__right cf-positive">+{formatCurrency(metrics.totalIncome, currencyCode)}</td>
                   </tr>
                   <tr>
                     <td>Operating Expenses</td>
-                    <td className="ib-table__right cf-negative">({formatCurrency(totals.expense, currencyCode)})</td>
+                    <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalExpenses, currencyCode)}</td>
                   </tr>
                   <tr className="ib-table__total">
                     <td><strong>Net Profit / (Loss)</strong></td>
-                    <td className={`ib-table__right ${totals.net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                      <strong>{formatCurrency(totals.net, currencyCode)}</strong>
+                    <td className={`ib-table__right ${metrics.netProfit >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                      <strong>{formatCurrency(metrics.netProfit, currencyCode)}</strong>
                     </td>
                   </tr>
                 </tbody>
@@ -325,16 +325,16 @@ function Reports(): React.JSX.Element {
                 <tbody>
                   <tr>
                     <td>Total Inflows (Inc + Cap)</td>
-                    <td className="ib-table__right cf-positive">+{formatCurrency(totals.income + totals.capital, currencyCode)}</td>
+                    <td className="ib-table__right cf-positive">+{formatCurrency(metrics.totalIncome + metrics.capitalAdded, currencyCode)}</td>
                   </tr>
                   <tr>
                     <td>Total Outflows (Exp + Wdr)</td>
-                    <td className="ib-table__right cf-negative">({formatCurrency(totals.expense + totals.withdrawal, currencyCode)})</td>
+                    <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalExpenses + metrics.totalWithdrawals, currencyCode)}</td>
                   </tr>
                   <tr className="ib-table__total">
-                    <td><strong>Net Cash Balance Movement</strong></td>
-                    <td className={`ib-table__right ${(totals.income + totals.capital - totals.expense - totals.withdrawal) >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                      <strong>{formatCurrency(totals.income + totals.capital - totals.expense - totals.withdrawal, currencyCode)}</strong>
+                    <td><strong>Net Cash Movement</strong></td>
+                    <td className={`ib-table__right ${metrics.cashPosition >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                      <strong>{formatCurrency(metrics.cashPosition, currencyCode)}</strong>
                     </td>
                   </tr>
                 </tbody>
@@ -349,16 +349,16 @@ function Reports(): React.JSX.Element {
                 <tbody>
                   <tr>
                     <td>Capital Contributed</td>
-                    <td className="ib-table__right cf-positive">+{formatCurrency(totals.capital, currencyCode)}</td>
+                    <td className="ib-table__right cf-positive">+{formatCurrency(metrics.capitalAdded, currencyCode)}</td>
                   </tr>
                   <tr>
                     <td>Owner Withdrawals</td>
-                    <td className="ib-table__right cf-negative">({formatCurrency(totals.withdrawal, currencyCode)})</td>
+                    <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalWithdrawals, currencyCode)}</td>
                   </tr>
                   <tr className="ib-table__total">
-                    <td><strong>Net Capital Position</strong></td>
-                    <td className={`ib-table__right ${(totals.capital - totals.withdrawal) >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                      <strong>{formatCurrency(totals.capital - totals.withdrawal, currencyCode)}</strong>
+                    <td><strong>Net Equity</strong></td>
+                    <td className={`ib-table__right ${metrics.netEquity >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                      <strong>{formatCurrency(metrics.netEquity, currencyCode)}</strong>
                     </td>
                   </tr>
                 </tbody>

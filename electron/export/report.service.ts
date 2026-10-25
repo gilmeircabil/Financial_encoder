@@ -94,7 +94,9 @@ export function buildCsvReport(data: ReportData): string {
   push(`Expense,${data.totals.expense}`)
   push(`Capital,${data.totals.capital}`)
   push(`Withdrawal,${data.totals.withdrawal}`)
-  push(`Net,${data.totals.net}`)
+  push(`Net Profit,${data.totals.income - data.totals.expense}`)
+  push(`Cash Position,${data.totals.income + data.totals.capital - data.totals.expense - data.totals.withdrawal}`)
+  push(`Net Equity,${data.totals.capital - data.totals.withdrawal}`)
   push(`Transaction count,${data.totals.count}`)
   push('')
 
@@ -159,6 +161,9 @@ export function buildHtmlReport(data: ReportData): string {
       </tr>`).join('\n')
 
   const t = data.totals
+  const np = t.income - t.expense
+  const cp = t.income + t.capital - t.expense - t.withdrawal
+  const eq = t.capital - t.withdrawal
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -189,9 +194,9 @@ export function buildHtmlReport(data: ReportData): string {
   <div class="grid">
     <div class="stat"><div class="label">Income</div><div class="value">${escapeHtml(money(t.income, data.currency))}</div></div>
     <div class="stat"><div class="label">Expenses</div><div class="value">${escapeHtml(money(t.expense, data.currency))}</div></div>
-    <div class="stat"><div class="label">Capital</div><div class="value">${escapeHtml(money(t.capital, data.currency))}</div></div>
-    <div class="stat"><div class="label">Withdrawals</div><div class="value">${escapeHtml(money(t.withdrawal, data.currency))}</div></div>
-    <div class="stat"><div class="label">Net</div><div class="value ${t.net >= 0 ? 'positive' : 'negative'}">${escapeHtml(money(t.net, data.currency))}</div></div>
+    <div class="stat"><div class="label">Net Profit</div><div class="value ${np >= 0 ? 'positive' : 'negative'}">${escapeHtml(money(np, data.currency))}</div></div>
+    <div class="stat"><div class="label">Cash Position</div><div class="value ${cp >= 0 ? 'positive' : 'negative'}">${escapeHtml(money(cp, data.currency))}</div></div>
+    <div class="stat"><div class="label">Net Equity</div><div class="value ${eq >= 0 ? 'positive' : 'negative'}">${escapeHtml(money(eq, data.currency))}</div></div>
   </div>
 
   <h2>Monthly Summary</h2>
@@ -233,7 +238,9 @@ export async function buildXlsxReport(data: ReportData): Promise<Buffer> {
     ['Expense', t.expense],
     ['Capital', t.capital],
     ['Withdrawal', t.withdrawal],
-    ['Net', t.net],
+    ['Net Profit', t.income - t.expense],
+    ['Cash Position', t.income + t.capital - t.expense - t.withdrawal],
+    ['Net Equity', t.capital - t.withdrawal],
     ['Transaction count', t.count],
   ]
   summaryRows.forEach((row) => summary.addRow(row))

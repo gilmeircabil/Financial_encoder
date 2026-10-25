@@ -10,6 +10,7 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
+import { computeFinance } from '../../lib/finance'
 import { formatDate, parseISODate } from '../../utils/dates'
 import {
   customRangeInvalid,
@@ -239,7 +240,8 @@ export default function LedgerPage({
     ? `${(pageData.page - 1) * pageData.page_size + (pageData.transactions.length > 0 ? 1 : 0)}–${Math.min(pageData.page * pageData.page_size, pageData.total)} of ${pageData.total}`
     : ''
 
-  const totalAmount = totals ? (type === 'income' ? totals.income : totals.expense) : 0
+  const metrics = computeFinance(totals)
+  const totalAmount = type === 'income' ? metrics.totalIncome : metrics.totalExpenses
 
   const monthlyAverage = useMemo(() => {
     const activeMonths = monthly.filter((m) => (type === 'income' ? m.income : m.expense) > 0)

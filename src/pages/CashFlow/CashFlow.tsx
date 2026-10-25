@@ -7,6 +7,7 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
+import { computeFinance } from '../../lib/finance'
 import {
   customRangeInvalid,
   formatMonth,
@@ -83,9 +84,10 @@ function CashFlow(): React.JSX.Element {
     return () => window.removeEventListener('transaction-saved', handleSaved)
   }, [load])
 
-  const inflows = totals ? totals.income + totals.capital : 0
-  const outflows = totals ? totals.expense + totals.withdrawal : 0
-  const netCash = inflows - outflows
+  const metrics = computeFinance(totals)
+  const inflows = metrics.totalIncome + metrics.capitalAdded
+  const outflows = metrics.totalExpenses + metrics.totalWithdrawals
+  const netCash = metrics.cashPosition
   const coverageRatio = outflows > 0 ? inflows / outflows : inflows > 0 ? 100 : 0
 
   const chartData = useMemo(

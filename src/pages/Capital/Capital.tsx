@@ -10,6 +10,7 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
+import { computeFinance } from '../../lib/finance'
 import { formatDate, parseISODate } from '../../utils/dates'
 import {
   customRangeInvalid,
@@ -193,8 +194,9 @@ function Capital(): React.JSX.Element {
     ? `${(pageData.page - 1) * pageData.page_size + (pageData.transactions.length > 0 ? 1 : 0)}–${Math.min(pageData.page * pageData.page_size, pageData.total)} of ${pageData.total}`
     : ''
 
-  const netCapital = totals ? totals.capital - totals.withdrawal : 0
-  const retention = totals && totals.capital > 0 ? ((totals.capital - totals.withdrawal) / totals.capital) * 100 : 0
+  const metrics = computeFinance(totals)
+  const netCapital = metrics.netEquity
+  const retention = metrics.capitalAdded > 0 ? (metrics.netEquity / metrics.capitalAdded) * 100 : 0
 
   return (
     <div className="page capital-page">
