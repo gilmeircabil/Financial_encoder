@@ -237,6 +237,10 @@ export default function LedgerPage({
   const metrics = computeFinance(totals)
   const totalAmount = type === 'income' ? metrics.totalIncome : metrics.totalExpenses
 
+  const activeMonthsCount = useMemo(() => {
+    return monthly.filter((m) => (type === 'income' ? m.income : m.expense) > 0).length
+  }, [monthly, type])
+
   const monthlyAverage = useMemo(() => {
     const activeMonths = monthly.filter((m) => (type === 'income' ? m.income : m.expense) > 0)
     if (activeMonths.length === 0) return 0
@@ -314,14 +318,23 @@ export default function LedgerPage({
 
           <div className="card stat-card">
             <div className="stat-card__head">
-              <span className="stat-card__label">Monthly Average</span>
+              <span className="stat-card__label">
+                Monthly Average
+                {activeMonthsCount === 1 ? (
+                  <span className="stat-card__hint-badge" title="Only 1 active month recorded for this period.">
+                    Limited data
+                  </span>
+                ) : null}
+              </span>
               <div className="stat-card__icon" aria-hidden="true">
                 <Icon name="calendar" size={17} />
               </div>
             </div>
             <span className="stat-card__value" title={formatCurrency(monthlyAverage, currencyCode)}>{formatCompactCurrency(monthlyAverage, currencyCode)}</span>
             <div className="stat-card__footer">
-              <span className="stat-card__subtext">Mean per active month</span>
+              <span className="stat-card__subtext">
+                {activeMonthsCount === 1 ? '1 month recorded (limited data)' : 'Mean per active month'}
+              </span>
             </div>
           </div>
 

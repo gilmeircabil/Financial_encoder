@@ -73,7 +73,7 @@ export interface TransactionFilters {
   date_from?: string
   date_to?: string
   search_term?: string
-  sort_by?: 'date' | 'description' | 'amount' | 'type'
+  sort_by?: 'date' | 'description' | 'amount' | 'type' | 'category'
   sort_dir?: 'asc' | 'desc'
   page?: number
   page_size?: number
@@ -92,6 +92,7 @@ const COLUMN_MAP: Record<Required<TransactionFilters>['sort_by'], string> = {
   description: 't.description',
   amount: 't.amount',
   type: 't.type',
+  category: 'c.name',
 }
 
 function orderByClause(filters: TransactionFilters): string {

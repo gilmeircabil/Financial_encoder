@@ -1,26 +1,27 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
-import TypeToConfirmModal from '../../components/ui/TypeToConfirmModal'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 import TransactionForm from '../../components/transactions/TransactionForm'
 import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
-import { getCategoryColor } from '../../utils/chart'
 import { formatDate, parseISODate } from '../../utils/dates'
 import { useDateRange } from '../../contexts/DateRangeContext'
 import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
 import { logToMain } from '../../services/logger'
+import { getCategoryColor } from '../../utils/chart'
 import type { Category, Transaction, TransactionFilters, TransactionPage, TransactionType } from '../../../electron/types/ipc'
 
 const PAGE_SIZE = 20
 type TransactionFilterType = TransactionType
+type SortColumn = 'date' | 'description' | 'amount' | 'type' | 'category'
 
 interface SortState {
-  sort_by: NonNullable<TransactionFilters['sort_by']>
+  sort_by: SortColumn
   sort_dir: 'asc' | 'desc'
 }
 
@@ -32,6 +33,14 @@ const TYPE_FILTER_TABS: Array<{ value: string; label: string }> = [
   { value: 'withdrawal', label: 'Withdrawal' },
   { value: 'asset', label: 'Asset' },
   { value: 'liability', label: 'Liability' },
+]
+
+const SORTABLE_COLUMNS: Array<{ key: SortColumn; label: string; className?: string }> = [
+  { key: 'date', label: 'Date', className: 'tx-cell-date' },
+  { key: 'description', label: 'Description', className: 'tx-cell-desc' },
+  { key: 'amount', label: 'Amount', className: 'tx-table__amount' },
+  { key: 'type', label: 'Type' },
+  { key: 'category', label: 'Category', className: 'tx-cell-cat' },
 ]
 
 function Transactions(): React.JSX.Element {
@@ -61,6 +70,14 @@ function Transactions(): React.JSX.Element {
   const [deletingBusy, setDeletingBusy] = useState(false)
   const [exporting, setExporting] = useState(false)
 
+  // Running balance toggle
+  const [showRunningBalance, setShowRunningBalance] = useState(false)
+
+  // Row selection for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeletingBusy, setBulkDeletingBusy] = useState(false)
+
   useEffect(() => {
     let cancelled = false
     api.categories.list()
@@ -71,15 +88,12 @@ function Transactions(): React.JSX.Element {
     return () => { cancelled = true }
   }, [])
 
-  
-
   const load = useCallback(async (): Promise<void> => {
     if (customInvalid) {
       return
     }
     setLoading(true)
     setError(null)
-    // range comes from useDateRange()
     const filters: TransactionFilters = {
       page,
       page_size: PAGE_SIZE,
@@ -117,6 +131,11 @@ function Transactions(): React.JSX.Element {
     void load()
   }, [load])
 
+  // Clear row selections when page, search, or filters change
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [page, debouncedSearch, typeFilter, categoryFilter, range])
+
   // Auto-refresh when transaction-saved event is dispatched
   useEffect(() => {
     const handleSaved = () => {
@@ -143,18 +162,22 @@ function Transactions(): React.JSX.Element {
     }
   }, [searchParams])
 
-  const toggleSort = (by: NonNullable<TransactionFilters['sort_by']>): void => {
+  const toggleSort = (by: SortColumn): void => {
     setPage(1)
     setSort((prev) => (prev.sort_by === by
       ? { sort_by: by, sort_dir: prev.sort_dir === 'asc' ? 'desc' : 'asc' }
       : { sort_by: by, sort_dir: 'asc' }))
   }
 
-  const sortArrow = (by: NonNullable<TransactionFilters['sort_by']>): string => {
+  const sortArrow = (by: SortColumn): React.JSX.Element => {
     if (sort.sort_by !== by) {
-      return ''
+      return <span className="tx-table__sort-icon tx-table__sort-icon--idle" aria-hidden="true">↕</span>
     }
-    return sort.sort_dir === 'asc' ? ' ↑' : ' ↓'
+    return (
+      <span className="tx-table__sort-icon tx-table__sort-icon--active" aria-hidden="true">
+        {sort.sort_dir === 'asc' ? '↑' : '↓'}
+      </span>
+    )
   }
 
   const hasActiveFilters = Boolean(search || typeFilter || categoryFilter)
@@ -171,6 +194,44 @@ function Transactions(): React.JSX.Element {
     setFormOpen(true)
   }
 
+  // Row selection helpers
+  const transactions = data?.transactions ?? []
+  const allOnPageSelected = transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id))
+  const someOnPageSelected = transactions.some((t) => selectedIds.has(t.id)) && !allOnPageSelected
+
+  const toggleSelectRow = (id: number): void => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = (): void => {
+    if (allOnPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const t of transactions) {
+          next.delete(t.id)
+        }
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const t of transactions) {
+          next.add(t.id)
+        }
+        return next
+      })
+    }
+  }
+
+  // Single delete
   const confirmDelete = async (): Promise<void> => {
     if (!deleting || deletingBusy) {
       return
@@ -179,6 +240,11 @@ function Transactions(): React.JSX.Element {
     try {
       await api.transactions.delete(deleting.id)
       success(`Transaction "${deleting.description}" deleted.`)
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(deleting.id)
+        return next
+      })
       setDeleting(null)
       await load()
     } catch (err) {
@@ -192,10 +258,59 @@ function Transactions(): React.JSX.Element {
     }
   }
 
+  // Bulk delete
+  const confirmBulkDelete = async (): Promise<void> => {
+    if (selectedIds.size === 0 || bulkDeletingBusy) {
+      return
+    }
+    setBulkDeletingBusy(true)
+    try {
+      const ids = Array.from(selectedIds)
+      for (const id of ids) {
+        await api.transactions.delete(id)
+      }
+      success(`Successfully deleted ${ids.length} transaction${ids.length === 1 ? '' : 's'}.`)
+      setSelectedIds(new Set())
+      setBulkDeleteOpen(false)
+      await load()
+    } catch (err) {
+      const message = (err as ApiError).message ?? 'Some transactions could not be deleted.'
+      logToMain('error', 'bulk delete failed', { message })
+      toastError(message)
+    } finally {
+      setBulkDeletingBusy(false)
+    }
+  }
+
+  // Running balance calculation for rows on current page
+  const runningBalances = useMemo<number[]>(() => {
+    if (!data?.transactions || data.transactions.length === 0) return []
+    let cumulative = 0
+    const deltas = data.transactions.map((tx) => {
+      const isOutflow = tx.type === 'expense' || tx.type === 'withdrawal' || tx.type === 'liability'
+      return isOutflow ? -tx.amount : tx.amount
+    })
+    if (sort.sort_dir === 'desc') {
+      const reversedDeltas = [...deltas].reverse()
+      const reversedCumul: number[] = []
+      for (const d of reversedDeltas) {
+        cumulative += d
+        reversedCumul.push(cumulative)
+      }
+      return reversedCumul.reverse()
+    } else {
+      const cumul: number[] = []
+      for (const d of deltas) {
+        cumulative += d
+        cumul.push(cumulative)
+      }
+      return cumul
+    }
+  }, [data?.transactions, sort.sort_dir])
+
   const handleExportCsv = async (): Promise<void> => {
     setExporting(true)
     try {
-      // range from useDateRange()
       await api.exports.file({
         format: 'csv',
         filter: {
@@ -301,6 +416,18 @@ function Transactions(): React.JSX.Element {
 
         <GlobalDateRangeSelector />
 
+        {/* Toggle Running Balance column */}
+        <button
+          type="button"
+          className={`btn btn--sm ${showRunningBalance ? 'btn--primary' : 'btn--secondary'}`}
+          onClick={() => setShowRunningBalance((prev) => !prev)}
+          title="Toggle cumulative running balance column"
+          aria-pressed={showRunningBalance}
+        >
+          <Icon name="wallet" size={13} />
+          <span>Running Balance</span>
+        </button>
+
         {hasActiveFilters ? (
           <button type="button" className="btn btn--secondary btn--sm" onClick={resetFilters}>
             <Icon name="x" size={13} />
@@ -314,6 +441,32 @@ function Transactions(): React.JSX.Element {
           </div>
         )}
       </div>
+
+      {/* Bulk selection action bar */}
+      {selectedIds.size > 0 && (
+        <div className="tx-bulk-bar" role="region" aria-label="Bulk actions">
+          <span className="tx-bulk-bar__count">
+            <strong>{selectedIds.size}</strong> {selectedIds.size === 1 ? 'transaction' : 'transactions'} selected
+          </span>
+          <div className="tx-bulk-bar__actions">
+            <button
+              type="button"
+              className="btn btn--danger btn--sm"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Icon name="trash" size={13} />
+              <span>Delete Selected ({selectedIds.size})</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {customInvalid ? (
         <div role="alert" className="notice notice--error">
@@ -349,22 +502,52 @@ function Transactions(): React.JSX.Element {
             <table className="tx-table">
               <thead>
                 <tr>
-                  {(['date', 'description', 'amount', 'type'] as const).map((col) => (
-                    <th key={col}>
-                      <button type="button" className="tx-table__sort" onClick={() => toggleSort(col)}>
-                        {col.charAt(0).toUpperCase() + col.slice(1)}{sortArrow(col)}
+                  <th className="tx-cell-check">
+                    <input
+                      type="checkbox"
+                      checked={allOnPageSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someOnPageSelected
+                      }}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all transactions on page"
+                    />
+                  </th>
+                  {SORTABLE_COLUMNS.map((col) => (
+                    <th key={col.key} className={col.className}>
+                      <button
+                        type="button"
+                        className={`tx-table__sort ${sort.sort_by === col.key ? 'tx-table__sort--active' : ''}`}
+                        onClick={() => toggleSort(col.key)}
+                        aria-label={`Sort by ${col.label}`}
+                      >
+                        <span>{col.label}</span>
+                        {sortArrow(col.key)}
                       </button>
                     </th>
                   ))}
-                  <th>Category</th>
+                  {showRunningBalance && (
+                    <th className="tx-table__amount">Running Balance</th>
+                  )}
                   <th className="tx-table__actions-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {data.transactions.map((tx) => {
-                  const isOutflow = tx.type === 'expense' || tx.type === 'withdrawal'
+                {data.transactions.map((tx, idx) => {
+                  const isOutflow = tx.type === 'expense' || tx.type === 'withdrawal' || tx.type === 'liability'
+                  const isSelected = selectedIds.has(tx.id)
+                  const rowBalance = runningBalances[idx] ?? 0
+
                   return (
-                    <tr key={tx.id} className="tx-row">
+                    <tr key={tx.id} className={`tx-row ${isSelected ? 'tx-row--selected' : ''}`}>
+                      <td className="tx-cell-check">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(tx.id)}
+                          aria-label={`Select transaction ${tx.description}`}
+                        />
+                      </td>
                       <td className="tx-cell-date">
                         <time dateTime={tx.date}>{formatDate(parseISODate(tx.date), dateFormat)}</time>
                       </td>
@@ -390,10 +573,17 @@ function Transactions(): React.JSX.Element {
                           <span>{tx.category_name}</span>
                         </span>
                       </td>
+                      {showRunningBalance && (
+                        <td className={`tx-table__amount ${rowBalance >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                          <span className="tx-amount-badge">
+                            {formatCurrency(rowBalance, currencyCode)}
+                          </span>
+                        </td>
+                      )}
                       <td className="tx-table__actions">
                         <button
                           type="button"
-                          className="btn btn--secondary btn--sm tx-action-btn"
+                          className="btn btn--sm tx-action-btn tx-action-btn--edit"
                           onClick={() => openEdit(tx)}
                           title="Edit transaction"
                         >
@@ -402,7 +592,7 @@ function Transactions(): React.JSX.Element {
                         </button>
                         <button
                           type="button"
-                          className="btn btn--danger btn--sm tx-action-btn"
+                          className="btn btn--sm tx-action-btn tx-action-btn--delete"
                           onClick={() => setDeleting(tx)}
                           title="Delete transaction"
                         >
@@ -457,22 +647,39 @@ function Transactions(): React.JSX.Element {
         }}
       />
 
-      <TypeToConfirmModal
+      {/* Delete confirmation modal for single transaction */}
+      <ConfirmModal
         open={deleting !== null}
         title="Delete Transaction"
         message={
-          <>
-            You are about to permanently delete
-            {deleting ? <> <strong>"{deleting.description}"</strong> ({formatCurrency(deleting.amount, currencyCode)})</> : ' the transaction'}
-            . This cannot be undone.
-          </>
+          deleting ? (
+            <p>
+              Are you sure you want to permanently delete <strong>"{deleting.description}"</strong> (
+              {formatCurrency(deleting.amount, currencyCode)})? This action cannot be undone.
+            </p>
+          ) : null
         }
         confirmLabel="Delete Permanently"
-        requiredText="DELETE"
+        danger
         busy={deletingBusy}
-        busyLabel="Deleting…"
         onConfirm={() => void confirmDelete()}
         onCancel={() => setDeleting(null)}
+      />
+
+      {/* Bulk delete confirmation modal */}
+      <ConfirmModal
+        open={bulkDeleteOpen}
+        title="Delete Multiple Transactions"
+        message={
+          <p>
+            Are you sure you want to permanently delete <strong>{selectedIds.size}</strong> selected transactions? This action cannot be undone.
+          </p>
+        }
+        confirmLabel={`Delete ${selectedIds.size} Transactions`}
+        danger
+        busy={bulkDeletingBusy}
+        onConfirm={() => void confirmBulkDelete()}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
     </div>
   )
