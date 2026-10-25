@@ -170,7 +170,7 @@ function SettingsBackups(): React.JSX.Element {
           id="s-backups"
           icon="archive"
           title="Backup &amp; Restore"
-          description="Snapshots of your local database. Export a backup and restore it on any computer running Financial Encoder. Restoring replaces the current data."
+          description="Snapshots of your local database. Export a backup and restore it on any computer running Acorn. Restoring replaces the current data."
           actions={
             <>
               <button type="button" className="btn btn--secondary btn--sm" onClick={() => void exportBackup()} disabled={busyAction !== null}>

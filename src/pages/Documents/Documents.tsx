@@ -6,13 +6,9 @@ import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
+import { toISODate } from '../../utils/dates'
 import { logToMain } from '../../services/logger'
 import type { Category, CategoryType, ParsedDocumentLine, ReadDocumentResult } from '../../../electron/types/ipc'
-
-function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 const TYPES: CategoryType[] = ['expense', 'income', 'capital', 'withdrawal', 'asset', 'liability']
 
@@ -60,6 +56,26 @@ function Documents(): React.JSX.Element {
         setError(err.message)
         toastError(err.message)
       }
+    } finally {
+      setPicking(false)
+    }
+  }
+
+  async function dropDocument(file: File): Promise<void> {
+    setPicking(true)
+    setError(null)
+    setSavedCount(null)
+    setParsed(null)
+    try {
+      const doc = await api.ocr.drop(file)
+      setDocument(doc)
+      setText(doc.text)
+      success(`Read "${doc.fileName}" via ${doc.method === 'ocr' ? 'OCR' : 'PDF text parser'}`)
+      logToMain('info', 'document read', { fileName: doc.fileName, method: doc.method })
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'The dropped document could not be read.'
+      setError(msg)
+      toastError(msg)
     } finally {
       setPicking(false)
     }
@@ -138,7 +154,7 @@ function Documents(): React.JSX.Element {
         }
 
         const saved = await api.transactions.create({
-          date: row.date || todayIso(),
+          date: row.date || toISODate(new Date()),
           description: row.description.replace(/\s+/g, ' ').slice(0, 255),
           category_id,
           type,
@@ -216,7 +232,12 @@ function Documents(): React.JSX.Element {
           onDrop={(e) => {
             e.preventDefault()
             setIsDragging(false)
-            void pickDocument()
+            const file = e.dataTransfer?.files?.[0]
+            if (file) {
+              void dropDocument(file)
+            } else {
+              void pickDocument()
+            }
           }}
           role="button"
           tabIndex={0}
@@ -390,6 +411,7 @@ function Documents(): React.JSX.Element {
                               className="text-input text-input--sm"
                               style={{ width: '100%' }}
                               placeholder="Category name"
+                              list={`doc-cat-list-${row.type}`}
                               value={row.category}
                               onChange={(e) => updateRow(row.order, { category: e.target.value })}
                             />
@@ -408,6 +430,15 @@ function Documents(): React.JSX.Element {
                       ))}
                     </tbody>
                   </table>
+                  {TYPES.map((t) => (
+                    <datalist key={t} id={`doc-cat-list-${t}`}>
+                      {categories
+                        .filter((c) => c.type === t)
+                        .map((c) => (
+                          <option key={c.id} value={c.name} />
+                        ))}
+                    </datalist>
+                  ))}
                 </div>
               )}
 

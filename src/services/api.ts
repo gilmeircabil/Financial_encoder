@@ -29,7 +29,6 @@ import type {
   TransactionFilters,
   TransactionInput,
   TransactionPage,
-  UpdateStatus,
 } from '../../electron/types/ipc'
 
 export class ApiError extends Error {
@@ -83,6 +82,7 @@ export interface Api {
   }
   imports: {
     pick(): Promise<ImportPreview>
+    drop(file: File): Promise<ImportPreview>
     confirm(req: ImportMapping): Promise<ImportResult>
   }
   exports: {
@@ -98,17 +98,11 @@ export interface Api {
   }
   ocr: {
     pick(): Promise<ReadDocumentResult>
+    drop(file: File): Promise<ReadDocumentResult>
     parse(text: string, fileName: string): Promise<ParsedDocumentLine[]>
   }
   logger: {
     log(level: LogLevel, message: string, context?: unknown): Promise<void>
-  }
-  updater: {
-    check(): Promise<UpdateStatus>
-    download(): Promise<UpdateStatus>
-    install(): Promise<void>
-    openReleases(): Promise<void>
-    onStatus(callback: (status: UpdateStatus) => void): () => void
   }
 }
 
@@ -191,6 +185,9 @@ export const api: Api = {
     async pick() {
       return unwrap(await window.financialEncoder.imports.pick())
     },
+    async drop(file: File) {
+      return unwrap(await window.financialEncoder.imports.drop(file))
+    },
     async confirm(req) {
       return unwrap(await window.financialEncoder.imports.confirm(req))
     },
@@ -224,41 +221,11 @@ export const api: Api = {
     async pick() {
       return unwrap(await window.financialEncoder.ocr.pick())
     },
+    async drop(file: File) {
+      return unwrap(await window.financialEncoder.ocr.drop(file))
+    },
     async parse(text: string, fileName: string) {
       return unwrap(await window.financialEncoder.ocr.parse(text, fileName))
-    },
-  },
-  updater: {
-    async check() {
-      const bridge = window.financialEncoder?.updater
-      if (!bridge?.check) {
-        return { state: 'unsupported' } as UpdateStatus
-      }
-      return unwrap(await bridge.check())
-    },
-    async download() {
-      const bridge = window.financialEncoder?.updater
-      if (!bridge?.download) {
-        return { state: 'unsupported' } as UpdateStatus
-      }
-      return unwrap(await bridge.download())
-    },
-    async install() {
-      const bridge = window.financialEncoder?.updater
-      if (!bridge?.install) return
-      await bridge.install()
-    },
-    async openReleases() {
-      const bridge = window.financialEncoder?.updater
-      if (!bridge?.openReleases) return
-      await bridge.openReleases()
-    },
-    onStatus(callback) {
-      const bridge = window.financialEncoder?.updater
-      if (typeof bridge?.onStatus === 'function') {
-        return bridge.onStatus(callback)
-      }
-      return () => {}
     },
   },
 }

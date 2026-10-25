@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
-import { AppSettings, CalculationFilter, CashFlowGranularity, CategoryType, ExportRequest, FinancialEncoderApi, ImportMapping, TransactionFilters, TransactionInput, LogLevel, UpdateStatus } from './types/ipc'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { AppSettings, CalculationFilter, CashFlowGranularity, CategoryType, ExportRequest, FinancialEncoderApi, ImportMapping, TransactionFilters, TransactionInput, LogLevel } from './types/ipc'
 
 const api: FinancialEncoderApi = {
   app: {
@@ -36,6 +36,7 @@ const api: FinancialEncoderApi = {
   },
   imports: {
     pick: () => ipcRenderer.invoke('import:pick'),
+    drop: (file: File) => ipcRenderer.invoke('import:drop', webUtils.getPathForFile(file)),
     confirm: (req: ImportMapping) => ipcRenderer.invoke('import:confirm', req),
   },
   exports: {
@@ -51,24 +52,12 @@ const api: FinancialEncoderApi = {
   },
   ocr: {
     pick: () => ipcRenderer.invoke('ocr:pick'),
+    drop: (file: File) => ipcRenderer.invoke('ocr:drop', webUtils.getPathForFile(file)),
     parse: (text: string, fileName: string) => ipcRenderer.invoke('ocr:parse', { text, fileName }),
   },
   logger: {
     log: (level: LogLevel, message: string, context?: unknown) =>
       ipcRenderer.invoke('logger:log', level, message, context),
-  },
-  updater: {
-    check: () => ipcRenderer.invoke('updater:check'),
-    download: () => ipcRenderer.invoke('updater:download'),
-    install: () => ipcRenderer.invoke('updater:install'),
-    openReleases: () => ipcRenderer.invoke('updater:open-releases'),
-    onStatus: (callback: (status: UpdateStatus) => void) => {
-      const listener = (_event: IpcRendererEvent, status: UpdateStatus) => callback(status)
-      ipcRenderer.on('updater:status', listener)
-      return () => {
-        ipcRenderer.removeListener('updater:status', listener)
-      }
-    },
   },
 }
 

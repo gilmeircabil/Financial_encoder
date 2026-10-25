@@ -71,6 +71,24 @@ function Import(): React.JSX.Element {
     }
   }
 
+  async function dropFile(file: File): Promise<void> {
+    setPicking(true)
+    setError(null)
+    setResult(null)
+    try {
+      const picked = await api.imports.drop(file)
+      setPreview(picked)
+      setMapping(normalized(picked.suggested, 0))
+      success(`Loaded "${picked.fileName}" with ${picked.totalRows.toLocaleString()} rows.`)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'The dropped file could not be opened.'
+      setError(msg)
+      toastError(msg)
+    } finally {
+      setPicking(false)
+    }
+  }
+
   function setField(field: ImportField, index: number): void {
     if (!mapping) return
     setMapping({ ...mapping, [field]: index })
@@ -165,11 +183,11 @@ function Import(): React.JSX.Element {
           </div>
 
           <div className="import-summary">
-            <div className="import-summary__stat card">
+            <div className="import-summary__stat">
               <span className="import-summary__value" style={{ color: 'var(--success)' }}>{result.imported}</span>
               <span className="import-summary__label">Transactions Imported</span>
             </div>
-            <div className="import-summary__stat card">
+            <div className="import-summary__stat">
               <span className="import-summary__value" style={{ color: 'var(--text-muted)' }}>{result.skipped}</span>
               <span className="import-summary__label">Rows Skipped</span>
             </div>
@@ -209,7 +227,12 @@ function Import(): React.JSX.Element {
           onDrop={(e) => {
             e.preventDefault()
             setIsDragging(false)
-            void pickFile()
+            const file = e.dataTransfer?.files?.[0]
+            if (file) {
+              void dropFile(file)
+            } else {
+              void pickFile()
+            }
           }}
           role="button"
           tabIndex={0}
@@ -223,12 +246,11 @@ function Import(): React.JSX.Element {
             {picking ? 'Opening Spreadsheet…' : 'Drag & Drop CSV or Excel File'}
           </h3>
           <p className="dropzone__desc">
-            Supports bank statements, credit card exports, and accounting sheets (.csv, .xlsx, .xls).
+            Supports bank statements, credit card exports, and accounting sheets (.csv, .xlsx).
           </p>
           <div className="dropzone__types">
             <span className="dropzone__type-pill">CSV</span>
             <span className="dropzone__type-pill">XLSX</span>
-            <span className="dropzone__type-pill">XLS</span>
           </div>
           <button
             type="button"
@@ -275,7 +297,7 @@ function Import(): React.JSX.Element {
                 const isMapped = currentVal >= 0
 
                 return (
-                  <div key={field} className={`import-mapping__card card${isMapped ? ' import-mapping__card--mapped' : ''}`}>
+                  <div key={field} className={`import-mapping__card${isMapped ? ' import-mapping__card--mapped' : ''}`}>
                     <label className="import-mapping__label" htmlFor={`import-col-${field}`}>
                       <span className="import-mapping__label-text">
                         {FIELD_LABELS[field]}

@@ -8,7 +8,7 @@ interface IntroScreenProps {
 
 export function IntroScreen({ onEnter }: IntroScreenProps): React.JSX.Element {
   const { settings, setSetting } = useSettings()
-  const initialName = settings?.appName || 'Financial Encoder'
+  const initialName = settings?.appName || 'Acorn'
   const [name, setName] = useState(initialName)
   const [skipStartup, setSkipStartup] = useState(() => {
     return localStorage.getItem('fe_intro_dismissed') === 'true'
@@ -44,7 +44,7 @@ export function IntroScreen({ onEnter }: IntroScreenProps): React.JSX.Element {
           <AppLogo size={72} withBackground />
         </div>
 
-        <h1 className="intro-title">{name || 'Financial Encoder'}</h1>
+        <h1 className="intro-title">{name || 'Acorn'}</h1>
         <p className="intro-subtitle">
           Minimalist offline financial management &amp; encoding suite.
         </p>

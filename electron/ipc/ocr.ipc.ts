@@ -28,6 +28,13 @@ export function registerOcrIpcHandlers(): void {
     return readDocument(result.filePaths[0])
   })
 
+  registerIpcHandler<ReadDocumentResult>('ocr:drop', async (_event, filePath) => {
+    if (typeof filePath !== 'string' || filePath.trim() === '') {
+      throw new AppError('VALIDATION_ERROR', 'A valid dropped file is required.')
+    }
+    return readDocument(filePath)
+  })
+
   registerIpcHandler<ParsedDocumentLine[]>('ocr:parse', (_event, raw) => {
     const request = (raw ?? {}) as Record<string, unknown>
     if (typeof request.text !== 'string') {

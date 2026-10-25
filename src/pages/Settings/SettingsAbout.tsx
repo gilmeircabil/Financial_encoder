@@ -1,5 +1,6 @@
 import SettingsPage from './SettingsPage'
 import SettingsSection from '../../components/ui/SettingsSection'
+import { AppLogo } from '../../components/ui/AppLogo'
 
 function SettingsAbout(): React.JSX.Element {
   return (
@@ -7,8 +8,8 @@ function SettingsAbout(): React.JSX.Element {
       <div className="settings-grid">
         <SettingsSection id="s-about" icon="info" title="About">
           <div className="settings-about">
-            <div className="settings-about__brand" aria-hidden="true">FE</div>
-            <h3 className="settings-about__name">Financial Encoder</h3>
+            <AppLogo size={56} withBackground />
+            <h3 className="settings-about__name">Acorn</h3>
             <p className="settings-about__label">Developer</p>
             <p className="settings-about__value">GilmierDev</p>
             <p className="settings-about__sublabel">Software &amp; AI Developer</p>

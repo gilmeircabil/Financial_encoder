@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, nativeTheme, session, shell } from 'electron'
 import * as path from 'path'
+import * as fs from 'fs'
 import { IpcMainInvokeEvent } from 'electron'
 import { logger } from './services/logger.service'
 import { AppError, registerIpcHandler } from './services/ipc-handler'
@@ -14,16 +15,22 @@ import { registerImportIpcHandlers } from './ipc/import.ipc'
 import { registerExportIpcHandlers } from './export/export.ipc'
 import { registerBackupIpcHandlers } from './ipc/backup.ipc'
 import { registerOcrIpcHandlers } from './ipc/ocr.ipc'
-import { registerUpdaterIpc } from './ipc/updater.ipc'
-import { initAutoUpdate } from './updater/update.service'
 import { AppInfo, LogLevel, PingResult } from './types/ipc'
 
 // Keep the user-data folder identical between dev and installed builds.
-app.setName('Financial Encoder')
-// Store all user data under %APPDATA%\Roaming\FinancialEncoder (no spaces),
-// matching the documented data path for the release.
+app.setName('Acorn')
+// Store all user data under %APPDATA%\Roaming\Acorn (no spaces).
 if (process.platform === 'win32') {
-  app.setPath('userData', path.join(app.getPath('appData'), 'FinancialEncoder'))
+  const acornPath = path.join(app.getPath('appData'), 'Acorn')
+  const legacyPath = path.join(app.getPath('appData'), 'FinancialEncoder')
+  if (!fs.existsSync(acornPath) && fs.existsSync(legacyPath)) {
+    try {
+      fs.renameSync(legacyPath, acornPath)
+    } catch {
+      // fallback if file is locked
+    }
+  }
+  app.setPath('userData', fs.existsSync(acornPath) ? acornPath : legacyPath)
 }
 // Chromium session data stays in its own subfolder so the data root contains
 // only the database, backups/, documents/, exports/ and logs/.
@@ -66,9 +73,9 @@ function createMainWindow(): BrowserWindow {
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    title: 'Financial Encoder',
+    title: 'Acorn',
     autoHideMenuBar: true,
-    backgroundColor: '#fafafc',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#090a0b' : '#f4f4f3',
     // In packaged builds the OS reads the icon from the executable; in dev the
     // helper binary icon is used unless we point at the real one explicitly.
     ...(app.isPackaged
@@ -202,7 +209,6 @@ function registerIpcHandlers(): void {
   registerExportIpcHandlers()
   registerBackupIpcHandlers()
   registerOcrIpcHandlers()
-  registerUpdaterIpc()
 }
 
 app.whenReady().then(() => {
@@ -254,7 +260,6 @@ app.whenReady().then(() => {
     logger.error('startup database init failed', err instanceof Error ? { message: err.message } : String(err))
   }
   mainWindow = createMainWindow()
-  initAutoUpdate()
 
   app.on('activate', () => {
     if (mainWindow === null) {

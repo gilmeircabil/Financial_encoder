@@ -39,16 +39,16 @@ export function backupDateStamp(date: Date = new Date()): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-/** Suggested portable backup filename, e.g. FinancialEncoder-Backup-2026-09-16.febak */
+/** Suggested portable backup filename, e.g. Acorn-Backup-2026-09-16.febak */
 export function buildBackupFileName(date: Date = new Date()): string {
-  return `FinancialEncoder-Backup-${backupDateStamp(date)}.febak`
+  return `Acorn-Backup-${backupDateStamp(date)}.febak`
 }
 
 const ACCEPTED_BACKUP_EXTS = new Set(['.febak', '.db', '.sqlite', '.sqlite3', '.db3'])
 
 /**
- * Validates that a file is a readable SQLite database that looks like a
- * Financial Encoder backup. Nothing is modified. Used before any destructive
+ * Validates that a file is a readable SQLite database that looks like an
+ * Acorn backup. Nothing is modified. Used before any destructive
  * restore so corrupt or unrelated files are never written over the database.
  */
 export function validateBackupFile(filePath: string): void {
@@ -69,14 +69,14 @@ export function validateBackupFile(filePath: string): void {
       ),
     )
     if (!tables.has('schema_migrations') || !tables.has('transactions') || !tables.has('categories')) {
-      throw new AppError('INVALID_BACKUP', 'This file is not a Financial Encoder backup.')
+      throw new AppError('INVALID_BACKUP', 'This file is not an Acorn backup.')
     }
   } catch (err) {
     if (err instanceof AppError) {
       throw err
     }
     logger.warn('backup file validation failed', err instanceof Error ? err.message : String(err))
-    throw new AppError('INVALID_BACKUP', 'This file is not a valid Financial Encoder backup.')
+    throw new AppError('INVALID_BACKUP', 'This file is not a valid Acorn backup.')
   } finally {
     if (probe) {
       try {

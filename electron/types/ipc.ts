@@ -6,7 +6,6 @@ import type { ExportRequest, ExportResult } from '../export/export.ipc'
 import type { BackupRecord, BackupExportResult, RestoreFileResult } from '../database/backup.service'
 import type { ResetResult } from '../database/reset.service'
 import type { ParsedDocumentLine, ReadDocumentResult } from '../ocr/ocr.service'
-import type { UpdateStatus } from '../updater/update-meta'
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: AppError }
 
@@ -83,6 +82,7 @@ export interface FinancialEncoderApi {
   }
   imports: {
     pick(): Promise<IpcResult<ImportPreview>>
+    drop(file: File): Promise<IpcResult<ImportPreview>>
     confirm(req: ImportMapping): Promise<IpcResult<ImportResult>>
   }
   exports: {
@@ -98,17 +98,11 @@ export interface FinancialEncoderApi {
   }
   ocr: {
     pick(): Promise<IpcResult<ReadDocumentResult>>
+    drop(file: File): Promise<IpcResult<ReadDocumentResult>>
     parse(text: string, fileName: string): Promise<IpcResult<ParsedDocumentLine[]>>
   }
   logger: {
     log(level: LogLevel, message: string, context?: unknown): Promise<IpcResult<{ received: true }>>
-  }
-  updater: {
-    check(): Promise<IpcResult<UpdateStatus>>
-    download(): Promise<IpcResult<UpdateStatus>>
-    install(): Promise<IpcResult<void>>
-    openReleases(): Promise<IpcResult<void>>
-    onStatus(callback: (status: UpdateStatus) => void): () => void
   }
 }
 
@@ -134,4 +128,3 @@ export type { ExportFormat, ExportRequest, ExportResult } from '../export/export
 export type { BackupRecord, BackupExportResult, RestoreFileResult } from '../database/backup.service'
 export type { ResetResult } from '../database/reset.service'
 export type { DocumentKind, ParsedDocumentLine, ReadDocumentResult } from '../ocr/ocr.service'
-export type { UpdateStatus } from '../updater/update-meta'

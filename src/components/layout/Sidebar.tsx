@@ -4,21 +4,51 @@ import { Icon } from '../ui/Icon'
 import { AppLogo } from '../ui/AppLogo'
 import { useSettings } from '../../contexts/SettingsContext'
 
-function Sidebar(): React.JSX.Element {
+interface SidebarProps {
+  onQuickAddIncome?: () => void
+  onQuickAddExpense?: () => void
+}
+
+function Sidebar({ onQuickAddIncome, onQuickAddExpense }: SidebarProps): React.JSX.Element {
   const { settings } = useSettings()
-  const appName = settings?.appName || 'Financial Encoder'
+  const appName = settings?.appName || 'Acorn'
 
   return (
     <nav className="sidebar" aria-label="Main navigation">
       <div className="sidebar__brand">
         <div className="sidebar__logo" aria-hidden="true">
-          <AppLogo size={22} />
+          <AppLogo size={32} />
         </div>
         <div className="sidebar__brand-text">
           <span className="sidebar__name">{appName}</span>
           <span className="sidebar__version-tag">Local Vault</span>
         </div>
       </div>
+
+      {(onQuickAddIncome || onQuickAddExpense) ? (
+        <div className="sidebar__quick-pills">
+          {onQuickAddIncome ? (
+            <button
+              type="button"
+              className="sidebar__quick-pill"
+              onClick={onQuickAddIncome}
+            >
+              <Icon name="plus" size={14} />
+              <span>Add income</span>
+            </button>
+          ) : null}
+          {onQuickAddExpense ? (
+            <button
+              type="button"
+              className="sidebar__quick-pill"
+              onClick={onQuickAddExpense}
+            >
+              <Icon name="plus" size={14} />
+              <span>Add expense</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="sidebar__sections">
         {NAV_SECTIONS.map((section) => (
@@ -46,9 +76,9 @@ function Sidebar(): React.JSX.Element {
       <div className="sidebar__footer">
         <div className="sidebar__status">
           <span className="sidebar__status-dot" aria-hidden="true" />
-          <span className="sidebar__foot-label">Offline &amp; Encrypted</span>
+          <span className="sidebar__foot-label">Offline &amp; Local</span>
         </div>
-        <span className="sidebar__credit">Financial Encoder Suite</span>
+        <span className="sidebar__credit">Acorn Suite</span>
       </div>
     </nav>
   )

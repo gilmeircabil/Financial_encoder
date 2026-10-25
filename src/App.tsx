@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+import { Component, lazy, Suspense, useEffect, useState } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SettingsProvider } from './contexts/SettingsContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -7,8 +7,10 @@ import { api, ApiError } from './services/api'
 import { installGlobalErrorForwarding, logToMain } from './services/logger'
 import AppShell from './components/layout/AppShell'
 import { DEFAULT_SETTINGS_PATH } from './pages/Settings/settingsSections'
+import Dashboard from './pages/Dashboard/Dashboard'
+import IntroScreen from './components/ui/IntroScreen'
+import { AppLogo } from './components/ui/AppLogo'
 
-const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'))
 const Transactions = lazy(() => import('./pages/Transactions/Transactions'))
 const Income = lazy(() => import('./pages/Income/Income'))
 const Expenses = lazy(() => import('./pages/Expenses/Expenses'))
@@ -19,13 +21,54 @@ const Import = lazy(() => import('./pages/Import/Import'))
 const Documents = lazy(() => import('./pages/Documents/Documents'))
 const SettingsGeneral = lazy(() => import('./pages/Settings/SettingsGeneral'))
 const SettingsAppearance = lazy(() => import('./pages/Settings/SettingsAppearance'))
-const SettingsUpdates = lazy(() => import('./pages/Settings/SettingsUpdates'))
 const SettingsBackups = lazy(() => import('./pages/Settings/SettingsBackups'))
 const SettingsAbout = lazy(() => import('./pages/Settings/SettingsAbout'))
 const SettingsDanger = lazy(() => import('./pages/Settings/SettingsDanger'))
 
-import IntroScreen from './components/ui/IntroScreen'
-import { AppLogo } from './components/ui/AppLogo'
+interface ErrorBoundaryState {
+  error: Error | null
+}
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { error: null }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    logToMain('error', 'renderer component error', {
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack,
+    })
+  }
+
+  render(): ReactNode {
+    if (this.state.error) {
+      return (
+        <div className="boot">
+          <div className="boot__card boot__card--error" role="alert">
+            <p className="boot__title">Something went wrong in the interface</p>
+            <p className="boot__detail">{this.state.error.message}</p>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => {
+                this.setState({ error: null })
+                window.location.hash = '#/dashboard'
+                window.location.reload()
+              }}
+            >
+              Reload Interface
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 type BootstrapState =
   | { status: 'loading' }
@@ -119,7 +162,6 @@ function SystemContent(): React.JSX.Element {
           <Route path="/settings" element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
           <Route path="/settings/general" element={<SettingsGeneral />} />
           <Route path="/settings/appearance" element={<SettingsAppearance />} />
-          <Route path="/settings/updates" element={<SettingsUpdates />} />
           <Route path="/settings/backups" element={<SettingsBackups />} />
           <Route path="/settings/about" element={<SettingsAbout />} />
           <Route path="/settings/danger" element={<SettingsDanger />} />
@@ -132,15 +174,17 @@ function SystemContent(): React.JSX.Element {
 
 function App(): React.JSX.Element {
   return (
-    <SettingsProvider>
-      <ToastProvider>
-        <HashRouter>
-          <BootstrapGate>
-            <SystemContent />
-          </BootstrapGate>
-        </HashRouter>
-      </ToastProvider>
-    </SettingsProvider>
+    <AppErrorBoundary>
+      <SettingsProvider>
+        <ToastProvider>
+          <HashRouter>
+            <BootstrapGate>
+              <SystemContent />
+            </BootstrapGate>
+          </HashRouter>
+        </ToastProvider>
+      </SettingsProvider>
+    </AppErrorBoundary>
   )
 }
 

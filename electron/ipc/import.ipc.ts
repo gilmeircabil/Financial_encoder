@@ -23,6 +23,13 @@ export function registerImportIpcHandlers(): void {
     return buildImportPreview(result.filePaths[0])
   })
 
+  registerIpcHandler<ImportPreview>('import:drop', async (_event, filePath) => {
+    if (typeof filePath !== 'string' || filePath.trim() === '') {
+      throw new AppError('VALIDATION_ERROR', 'A valid dropped file is required.')
+    }
+    return buildImportPreview(filePath)
+  })
+
   registerIpcHandler<ImportResult>('import:confirm', async (_event, req) => {
     return confirmImport(req as ImportMapping)
   })

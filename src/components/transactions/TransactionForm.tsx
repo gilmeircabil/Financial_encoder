@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Modal from '../ui/Modal'
+import { Icon } from '../ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { toISODate } from '../../utils/dates'
 import { logToMain } from '../../services/logger'
@@ -60,6 +61,9 @@ function TransactionForm({ open, transaction, onClose, onSaved, defaultType = 'e
   const [loadingCategories, setLoadingCategories] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addingCategory, setAddingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [creatingCategory, setCreatingCategory] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -67,6 +71,8 @@ function TransactionForm({ open, transaction, onClose, onSaved, defaultType = 'e
     }
     setForm(transaction ? toFormState(transaction) : emptyForm(defaultType))
     setError(null)
+    setAddingCategory(false)
+    setNewCategoryName('')
     let cancelled = false
     setLoadingCategories(true)
     api.categories.list()
@@ -92,13 +98,43 @@ function TransactionForm({ open, transaction, onClose, onSaved, defaultType = 'e
   }
 
   const changeType = (type: TransactionType): void => {
-    const categoryStillValid = availableCategories.some((c) => c.id === Number(form.category_id))
+    const nextAvailable = categories.filter((c) => c.type === type)
+    const categoryStillValid = nextAvailable.some((c) => c.id === Number(form.category_id))
     setForm((prev) => ({
       ...prev,
       type,
       category_id: categoryStillValid ? prev.category_id : '',
     }))
+    setAddingCategory(false)
+    setNewCategoryName('')
     setError(null)
+  }
+
+  const handleCreateCategory = async (): Promise<void> => {
+    const trimmed = newCategoryName.trim()
+    if (!trimmed || creatingCategory) {
+      return
+    }
+    setCreatingCategory(true)
+    setError(null)
+    try {
+      const created = await api.categories.create({ name: trimmed, type: form.type })
+      setCategories((prev) => {
+        if (prev.some((c) => c.id === created.id)) {
+          return prev
+        }
+        return [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+      })
+      setForm((prev) => ({ ...prev, category_id: String(created.id) }))
+      setNewCategoryName('')
+      setAddingCategory(false)
+    } catch (err) {
+      const message = (err as ApiError).message ?? 'The category could not be created.'
+      setError(message)
+      logToMain('error', 'create category failed', { message })
+    } finally {
+      setCreatingCategory(false)
+    }
   }
 
   const submit = async (): Promise<void> => {
@@ -217,8 +253,22 @@ function TransactionForm({ open, transaction, onClose, onSaved, defaultType = 'e
           </select>
         </div>
 
-        <label className="field" htmlFor="tx-category">
-          <span className="field__label">Category</span>
+        <div className="field">
+          <div className="field__head">
+            <label className="field__label" htmlFor="tx-category">Category</label>
+            <button
+              type="button"
+              className="field__inline-btn"
+              onClick={() => {
+                setAddingCategory((prev) => !prev)
+                setNewCategoryName('')
+              }}
+              disabled={loadingCategories || creatingCategory}
+            >
+              <Icon name={addingCategory ? 'x' : 'plus'} size={12} />
+              <span>{addingCategory ? 'Cancel' : 'New category'}</span>
+            </button>
+          </div>
           <select
             id="tx-category"
             className="select-input"
@@ -239,12 +289,42 @@ function TransactionForm({ open, transaction, onClose, onSaved, defaultType = 'e
               </>
             )}
           </select>
-          {!loadingCategories && availableCategories.length === 0 ? (
+          {addingCategory ? (
+            <div className="inline-cat-form">
+              <input
+                type="text"
+                className="text-input"
+                placeholder={`New ${form.type} category name…`}
+                value={newCategoryName}
+                maxLength={60}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleCreateCategory()
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setAddingCategory(false)
+                    setNewCategoryName('')
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => void handleCreateCategory()}
+                disabled={creatingCategory || !newCategoryName.trim()}
+              >
+                {creatingCategory ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+          ) : null}
+          {!loadingCategories && availableCategories.length === 0 && !addingCategory ? (
             <span className="field__hint">
-              There are no categories for “{form.type}” yet. Add one in Settings &gt; Categories, or import a document.
+              There are no categories for “{form.type}” yet. Click “+ New category” above to create one.
             </span>
           ) : null}
-        </label>
+        </div>
 
         <label className="field" htmlFor="tx-amount">
           <span className="field__label">Amount</span>

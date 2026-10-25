@@ -10,6 +10,7 @@ import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/currency'
 import { formatDate, parseISODate } from '../../utils/dates'
+import { PERIOD_KEYS, PERIOD_LABELS, customRangeInvalid, periodRange, type PeriodKey } from '../../utils/periods'
 import { logToMain } from '../../services/logger'
 import type { Category, Transaction, TransactionFilters, TransactionPage, TransactionType } from '../../../electron/types/ipc'
 
@@ -49,6 +50,9 @@ function Transactions(): React.JSX.Element {
   const [categories, setCategories] = useState<Category[]>([])
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [period, setPeriod] = useState<PeriodKey>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
   const [formOpen, setFormOpen] = useState(false)
@@ -67,14 +71,26 @@ function Transactions(): React.JSX.Element {
     return () => { cancelled = true }
   }, [])
 
+  const rangeInvalid = period === 'custom' && customRangeInvalid(customFrom, customTo)
+
   const load = useCallback(async (): Promise<void> => {
+    if (rangeInvalid) {
+      return
+    }
     setLoading(true)
     setError(null)
+    const range = periodRange(period, customFrom, customTo)
     const filters: TransactionFilters = {
       page,
       page_size: PAGE_SIZE,
       sort_by: sort.sort_by,
       sort_dir: sort.sort_dir,
+    }
+    if (range.date_from) {
+      filters.date_from = range.date_from
+    }
+    if (range.date_to) {
+      filters.date_to = range.date_to
     }
     if (debouncedSearch.trim()) {
       filters.search_term = debouncedSearch.trim()
@@ -95,7 +111,7 @@ function Transactions(): React.JSX.Element {
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch, sort, typeFilter, categoryFilter])
+  }, [page, debouncedSearch, sort, typeFilter, categoryFilter, period, customFrom, customTo, rangeInvalid])
 
   useEffect(() => {
     void load()
@@ -141,16 +157,16 @@ function Transactions(): React.JSX.Element {
     return sort.sort_dir === 'asc' ? ' ↑' : ' ↓'
   }
 
+  const hasActiveFilters = Boolean(search || typeFilter || categoryFilter || period !== 'all')
+
   const resetFilters = (): void => {
     setSearch('')
     setTypeFilter('')
     setCategoryFilter('')
+    setPeriod('all')
+    setCustomFrom('')
+    setCustomTo('')
     setPage(1)
-  }
-
-  const openAdd = (): void => {
-    setEditing(null)
-    setFormOpen(true)
   }
 
   const openEdit = (transaction: Transaction): void => {
@@ -182,9 +198,12 @@ function Transactions(): React.JSX.Element {
   const handleExportCsv = async (): Promise<void> => {
     setExporting(true)
     try {
+      const range = periodRange(period, customFrom, customTo)
       await api.exports.file({
         format: 'csv',
         filter: {
+          ...(range.date_from ? { date_from: range.date_from } : {}),
+          ...(range.date_to ? { date_to: range.date_to } : {}),
           ...(typeFilter ? { types: [typeFilter as TransactionType] } : {}),
           ...(categoryFilter ? { category_ids: [Number(categoryFilter)] } : {}),
         },
@@ -220,15 +239,6 @@ function Transactions(): React.JSX.Element {
             >
               <Icon name="download" size={15} />
               <span>{exporting ? 'Exporting…' : 'Export CSV'}</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={openAdd}
-              title="Add new transaction (Press N)"
-            >
-              <Icon name="plus" size={15} />
-              <span>Add Transaction</span>
             </button>
           </div>
         }
@@ -292,7 +302,45 @@ function Transactions(): React.JSX.Element {
           </select>
         </label>
 
-        {(search || typeFilter || categoryFilter) ? (
+        <div className="period-selector" role="group" aria-label="Period filter">
+          {PERIOD_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
+              onClick={() => { setPeriod(key); setPage(1) }}
+            >
+              {PERIOD_LABELS[key]}
+            </button>
+          ))}
+        </div>
+
+        {period === 'custom' ? (
+          <div className="period-custom">
+            <label className="field__label" htmlFor="tx-from">
+              <span>From</span>{' '}
+              <input
+                id="tx-from"
+                type="date"
+                className="text-input text-input--sm"
+                value={customFrom}
+                onChange={(e) => { setCustomFrom(e.target.value); setPage(1) }}
+              />
+            </label>
+            <label className="field__label" htmlFor="tx-to">
+              <span>To</span>{' '}
+              <input
+                id="tx-to"
+                type="date"
+                className="text-input text-input--sm"
+                value={customTo}
+                onChange={(e) => { setCustomTo(e.target.value); setPage(1) }}
+              />
+            </label>
+          </div>
+        ) : null}
+
+        {hasActiveFilters ? (
           <button type="button" className="btn btn--secondary btn--sm" onClick={resetFilters}>
             <Icon name="x" size={13} />
             <span>Reset filters</span>
@@ -306,6 +354,12 @@ function Transactions(): React.JSX.Element {
         )}
       </div>
 
+      {rangeInvalid ? (
+        <div role="alert" className="notice notice--error">
+          The start date must be on or before the end date.
+        </div>
+      ) : null}
+
       {error ? (
         <div role="alert" className="notice notice--error">{error}</div>
       ) : null}
@@ -316,23 +370,18 @@ function Transactions(): React.JSX.Element {
         ) : !data || data.transactions.length === 0 ? (
           <EmptyState
             icon="transactions"
-            title={search || typeFilter || categoryFilter ? 'No matching transactions' : 'No transactions recorded'}
+            title={hasActiveFilters ? 'No matching transactions' : 'No transactions recorded'}
             description={
-              search || typeFilter || categoryFilter
+              hasActiveFilters
                 ? 'Try broadening your search term or selecting a different filter.'
                 : 'Get started by creating your first transaction, or import your records.'
             }
           >
-            {search || typeFilter || categoryFilter ? (
+            {hasActiveFilters ? (
               <button type="button" className="btn btn--secondary" onClick={resetFilters}>
                 Clear active filters
               </button>
-            ) : (
-              <button type="button" className="btn btn--primary" onClick={openAdd}>
-                <Icon name="plus" size={15} />
-                <span>+ Add Transaction</span>
-              </button>
-            )}
+            ) : null}
           </EmptyState>
         ) : (
           <div className="tx-table-wrap">

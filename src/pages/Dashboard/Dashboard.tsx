@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import PageHeader from '../../components/ui/PageHeader'
 import CashFlowChart from '../../components/charts/CashFlowChart'
 import CategoryProgressList from '../../components/ui/CategoryProgressList'
-import TransactionForm from '../../components/transactions/TransactionForm'
 import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
-import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency } from '../../utils/currency'
+import { formatCurrency, formatIntegerCurrency } from '../../utils/currency'
 import { formatDate, parseISODate } from '../../utils/dates'
 import { cashFlowPointsToChartData } from '../../utils/chart'
 import {
@@ -27,12 +24,10 @@ import type {
   CategoryBreakdown,
   Transaction,
   TransactionPage,
-  TransactionType,
 } from '../../../electron/types/ipc'
 
 function Dashboard(): React.JSX.Element {
   const { settings } = useSettings()
-  const { success } = useToast()
   const currencyCode = settings?.currency ?? 'PHP'
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
 
@@ -46,10 +41,6 @@ function Dashboard(): React.JSX.Element {
   const [recent, setRecent] = useState<TransactionPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  // Local quick transaction form
-  const [formOpen, setFormOpen] = useState(false)
-  const [formDefaultType, setFormDefaultType] = useState<TransactionType>('expense')
 
   const range = useMemo(() => periodRange(period, customFrom, customTo), [period, customFrom, customTo])
   const granularity = useMemo(() => cashFlowGranularity(range), [range])
@@ -123,12 +114,7 @@ function Dashboard(): React.JSX.Element {
   const expenseRatio = income > 0 ? (expense / income) * 100 : 0
 
   const chartData = useMemo(() => cashFlowPointsToChartData(cashFlow, granularity), [cashFlow, granularity])
-  const hasMovement = chartData.some((d) => d.inflow !== 0 || d.outflow !== 0 || d.net !== 0)
 
-  const incomeCategories = useMemo(
-    () => breakdown.filter((c) => c.type === 'income').slice(0, 5),
-    [breakdown],
-  )
   const expenseCategories = useMemo(
     () => breakdown.filter((c) => c.type === 'expense').slice(0, 5),
     [breakdown],
@@ -149,107 +135,16 @@ function Dashboard(): React.JSX.Element {
     return 'All time'
   }, [range, dateFormat])
 
-  const openQuickAdd = (type: TransactionType): void => {
-    setFormDefaultType(type)
-    setFormOpen(true)
-  }
-
-  const handleTxSaved = (saved: Transaction): void => {
-    setFormOpen(false)
-    success(`Recorded ${saved.type} "${saved.description}"`)
-    void load()
-  }
-
   return (
     <div className="page dashboard-page">
-      <PageHeader
-        title="Dashboard"
-        description="Executive financial overview, performance health, and cash flow trajectory."
-        actions={
-          <div className="dash-header-actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => openQuickAdd('expense')}
-            >
-              <Icon name="plus" size={15} />
-              <span>Log Transaction</span>
-            </button>
-          </div>
-        }
-      />
-
-      {/* Quick Action Navigation Strip */}
-      <div className="dash-quick-actions" role="toolbar" aria-label="Quick actions">
-        <button
-          type="button"
-          className="dash-action-btn dash-action-btn--income"
-          onClick={() => openQuickAdd('income')}
-          title="Quick log income"
-        >
-          <span className="dash-action-btn__icon">
-            <Icon name="arrowUp" size={16} />
-          </span>
-          <div className="dash-action-btn__text">
-            <span className="dash-action-btn__label">+ Log Income</span>
-            <span className="dash-action-btn__sub">Record earnings</span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          className="dash-action-btn dash-action-btn--expense"
-          onClick={() => openQuickAdd('expense')}
-          title="Quick log expense"
-        >
-          <span className="dash-action-btn__icon">
-            <Icon name="arrowDown" size={16} />
-          </span>
-          <div className="dash-action-btn__text">
-            <span className="dash-action-btn__label">- Log Expense</span>
-            <span className="dash-action-btn__sub">Record spend</span>
-          </div>
-        </button>
-
-        <Link to="/documents" className="dash-action-btn" title="Scan receipt or statement">
-          <span className="dash-action-btn__icon">
-            <Icon name="receipt" size={16} />
-          </span>
-          <div className="dash-action-btn__text">
-            <span className="dash-action-btn__label">Scan Receipt</span>
-            <span className="dash-action-btn__sub">OCR Document</span>
-          </div>
-        </Link>
-
-        <Link to="/import" className="dash-action-btn" title="Import CSV or Excel">
-          <span className="dash-action-btn__icon">
-            <Icon name="fileSpreadsheet" size={16} />
-          </span>
-          <div className="dash-action-btn__text">
-            <span className="dash-action-btn__label">Import CSV</span>
-            <span className="dash-action-btn__sub">Batch ingestion</span>
-          </div>
-        </Link>
-
-        <Link to="/reports" className="dash-action-btn" title="Generate Financial Report">
-          <span className="dash-action-btn__icon">
-            <Icon name="reports" size={16} />
-          </span>
-          <div className="dash-action-btn__text">
-            <span className="dash-action-btn__label">Reports</span>
-            <span className="dash-action-btn__sub">PDF / Excel export</span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Period selector */}
-      <div className="card page-toolbar">
-        <div className="period-selector" role="radiogroup" aria-label="Time period">
+      {/* Sleek Period Selector Bar */}
+      <div className="dash-toolbar-strip">
+        <div className="period-selector period-selector--pills" role="radiogroup" aria-label="Time period">
           {PERIOD_KEYS.map((key) => (
             <button
               key={key}
               type="button"
-              className={`btn btn--segment${period === key ? ' btn--segment-active' : ''}`}
+              className={`dash-period-pill${period === key ? ' dash-period-pill--active' : ''}`}
               role="radio"
               aria-checked={period === key}
               onClick={() => setPeriod(key)}
@@ -259,7 +154,7 @@ function Dashboard(): React.JSX.Element {
           ))}
           <button
             type="button"
-            className={`btn btn--segment${period === 'custom' ? ' btn--segment-active' : ''}`}
+            className={`dash-period-pill${period === 'custom' ? ' dash-period-pill--active' : ''}`}
             role="radio"
             aria-checked={period === 'custom'}
             onClick={() => setPeriod('custom')}
@@ -289,9 +184,7 @@ function Dashboard(): React.JSX.Element {
           </div>
         )}
 
-        <div className="dash-period-meta">
-          <span className="dash-range-pill">{periodLabel}</span>
-        </div>
+        <span className="dash-range-pill">{periodLabel}</span>
       </div>
 
       {customInvalid ? (
@@ -307,140 +200,112 @@ function Dashboard(): React.JSX.Element {
       {loading && !totals ? (
         <div className="spinner" style={{ margin: '32px auto' }} aria-label="Loading dashboard" />
       ) : totals ? (
-        <>
-          {/* Enhanced Modern Stat Cards */}
-          <div className="dash-summary">
-            {/* Total Income */}
-            <div className="card stat-card stat-card--income">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Total Income</span>
-                <div className="stat-card__icon" aria-hidden="true">
-                  <Icon name="arrowUp" size={17} />
+        <div className="dash-grid">
+          {/* Main Left Column (KPIs, Spline Curve Chart, Goals & Ledgers) */}
+          <div className="dash-main-col">
+            {/* Enhanced Finly Stat KPI Cards */}
+            <div className="dash-summary">
+              {/* Balance / Net Position */}
+              <div className="card stat-card stat-card--net">
+                <div className="stat-card__head">
+                  <span className="stat-card__label">Balance</span>
+                  <Link to="/cash-flow" className="stat-card__action-link" title="View Cash Flow Analysis" aria-label="View Cash Flow Analysis">
+                    <Icon name="arrowUpRight" size={14} />
+                  </Link>
                 </div>
-              </div>
-              <span className="stat-card__value stat-card__value--positive">
-                {formatCurrency(income, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                {income > 0 ? (
-                  <span className="stat-card__badge stat-card__badge--ok">
-                    <Icon name="trendingUp" size={12} />
-                    <span>{savingsRate.toFixed(1)}% savings rate</span>
-                  </span>
-                ) : (
-                  <span className="stat-card__subtext">No income in range</span>
-                )}
-              </div>
-            </div>
-
-            {/* Total Expenses */}
-            <div className="card stat-card stat-card--expense">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Total Expenses</span>
-                <div className="stat-card__icon" aria-hidden="true">
-                  <Icon name="arrowDown" size={17} />
-                </div>
-              </div>
-              <span className="stat-card__value stat-card__value--negative">
-                {formatCurrency(expense, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                {income > 0 ? (
-                  <span className={`stat-card__badge ${expenseRatio > 80 ? 'stat-card__badge--warn' : 'stat-card__badge--neutral'}`}>
-                    <span>{expenseRatio.toFixed(1)}% of income</span>
-                  </span>
-                ) : (
-                  <span className="stat-card__subtext">Operating outflows</span>
-                )}
-              </div>
-            </div>
-
-            {/* Net Position */}
-            <div className="card stat-card stat-card--net">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Net Position</span>
-                <div className="stat-card__icon" aria-hidden="true">
-                  <Icon name="wallet" size={17} />
-                </div>
-              </div>
-              <span className={`stat-card__value ${netPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                {formatCurrency(netPosition, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                <span className={`stat-card__badge ${netPosition >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
-                  <span>{netPosition >= 0 ? 'Surplus Reserve' : 'Deficit'}</span>
+                <span className={`stat-card__value ${netPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
+                  {formatIntegerCurrency(netPosition, currencyCode)}
                 </span>
-              </div>
-            </div>
-
-            {/* Net Capital */}
-            <div className="card stat-card stat-card--capital">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Net Capital</span>
-                <div className="stat-card__icon" aria-hidden="true">
-                  <Icon name="capital" size={17} />
+                <div className="stat-card__footer">
+                  <span className={`stat-card__badge ${netPosition >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
+                    <span>{netPosition >= 0 ? 'Surplus Reserve' : 'Deficit'}</span>
+                  </span>
                 </div>
               </div>
-              <span className={`stat-card__value ${netCapital >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
-                {formatCurrency(netCapital, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                <span className="stat-card__subtext">
-                  Equity &amp; investment balance
+
+              {/* Salary / Total Income */}
+              <div className="card stat-card stat-card--income">
+                <div className="stat-card__head">
+                  <span className="stat-card__label">Salary &amp; Income</span>
+                  <Link to="/income" className="stat-card__action-link" title="View Income Breakdown" aria-label="View Income Breakdown">
+                    <Icon name="arrowUpRight" size={14} />
+                  </Link>
+                </div>
+                <span className="stat-card__value stat-card__value--positive">
+                  {formatIntegerCurrency(income, currencyCode)}
                 </span>
+                <div className="stat-card__footer">
+                  {income > 0 ? (
+                    <span className="stat-card__badge stat-card__badge--ok">
+                      <Icon name="trendingUp" size={12} />
+                      <span>{savingsRate.toFixed(1)}% saved</span>
+                    </span>
+                  ) : (
+                    <span className="stat-card__subtext">No income in range</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Total Expenses */}
+              <div className="card stat-card stat-card--expense">
+                <div className="stat-card__head">
+                  <span className="stat-card__label">Expenses</span>
+                  <Link to="/expenses" className="stat-card__action-link" title="View Expense Breakdown" aria-label="View Expense Breakdown">
+                    <Icon name="arrowUpRight" size={14} />
+                  </Link>
+                </div>
+                <span className="stat-card__value stat-card__value--negative">
+                  {formatIntegerCurrency(expense, currencyCode)}
+                </span>
+                <div className="stat-card__footer">
+                  {income > 0 ? (
+                    <span className={`stat-card__badge ${expenseRatio > 80 ? 'stat-card__badge--warn' : 'stat-card__badge--neutral'}`}>
+                      <span>{expenseRatio.toFixed(1)}% of income</span>
+                    </span>
+                  ) : (
+                    <span className="stat-card__subtext">Operating outflows</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Savings / Net Capital */}
+              <div className="card stat-card stat-card--capital">
+                <div className="stat-card__head">
+                  <span className="stat-card__label">Savings &amp; Capital</span>
+                  <Link to="/capital" className="stat-card__action-link" title="View Capital Structure" aria-label="View Capital Structure">
+                    <Icon name="arrowUpRight" size={14} />
+                  </Link>
+                </div>
+                <span className={`stat-card__value ${netCapital >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}>
+                  {formatIntegerCurrency(netCapital, currencyCode)}
+                </span>
+                <div className="stat-card__footer">
+                  <span className="stat-card__subtext">Equity &amp; investments</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Cash flow + recent transactions */}
-          <div className="dash-lower">
+            {/* Income vs Expenses Spline Curve Chart */}
             <div className="card dash-cf">
               <div className="dash-cf__heading">
                 <div>
-                  <h3 className="card__title">Cash Flow Trajectory</h3>
-                  <span className="dash-cf__subtitle">Inflows vs Outflows over the selected timeline</span>
+                  <h3 className="card__title">Income vs. Expenses</h3>
+                  <span className="dash-cf__subtitle">Smooth cash flow trajectory over selected timeline</span>
                 </div>
                 <span className="dash-range-pill">{periodLabel}</span>
               </div>
 
-              <CashFlowChart data={chartData} currencyCode={currencyCode} height={230} />
-
-              {hasMovement && (
-                <div className="tx-table-wrap dash-cf__table">
-                  <table className="tx-table tx-table--compact">
-                    <thead>
-                      <tr>
-                        <th>Timeline</th>
-                        <th className="tx-table__amount">Inflow</th>
-                        <th className="tx-table__amount">Outflow</th>
-                        <th className="tx-table__amount">Net Movement</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chartData.map((row) => (
-                        <tr key={row.key}>
-                          <td>{row.fullLabel}</td>
-                          <td className="tx-table__amount cf-positive">
-                            +{formatCurrency(row.inflow, currencyCode)}
-                          </td>
-                          <td className="tx-table__amount cf-negative">
-                            -{formatCurrency(row.outflow, currencyCode)}
-                          </td>
-                          <td className={`tx-table__amount ${row.net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                            {row.net >= 0 ? '+' : ''}{formatCurrency(row.net, currencyCode)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <CashFlowChart data={chartData} currencyCode={currencyCode} height={310} />
             </div>
+          </div>
 
+          {/* Right Column (Recent Transactions, Expense Categories Donut) */}
+          <div className="dash-side-col">
+            {/* Recent Transactions Card */}
             <div className="card dash-recent">
               <div className="dash-recent__header">
                 <div>
-                  <h3 className="card__title">Recent Activity</h3>
+                  <h3 className="card__title">Recent Transactions</h3>
                   <span className="dash-recent__subtitle">Latest logged movements</span>
                 </div>
                 <Link to="/transactions" className="dash-view-all-link">
@@ -451,10 +316,14 @@ function Dashboard(): React.JSX.Element {
 
               {recent && recent.transactions.length > 0 ? (
                 <ul className="dash-list">
-                  {recent.transactions.slice(0, 7).map((tx: Transaction) => {
+                  {recent.transactions.slice(0, 4).map((tx: Transaction) => {
                     const isOutflow = tx.type === 'expense' || tx.type === 'withdrawal'
+                    const iconName = tx.type === 'income' ? 'arrowUp' : tx.type === 'capital' ? 'capital' : 'arrowDown'
                     return (
                       <li key={tx.id} className="dash-list__item">
+                        <div className={`dash-list__avatar dash-list__avatar--${tx.type}`} aria-hidden="true">
+                          <Icon name={iconName} size={15} />
+                        </div>
                         <div className="dash-list__main">
                           <span className="dash-list__desc" title={tx.description}>
                             {tx.description}
@@ -467,7 +336,6 @@ function Dashboard(): React.JSX.Element {
                           <span className={`dash-list__amount ${isOutflow ? 'cf-negative' : 'cf-positive'}`}>
                             {isOutflow ? '-' : '+'}{formatCurrency(tx.amount, currencyCode)}
                           </span>
-                          <span className={`badge badge--${tx.type}`}>{tx.type}</span>
                         </div>
                       </li>
                     )
@@ -477,25 +345,16 @@ function Dashboard(): React.JSX.Element {
                 <div className="dash-recent__empty-box">
                   <Icon name="transactions" size={28} />
                   <p>No transactions logged in this period.</p>
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    onClick={() => openQuickAdd('expense')}
-                  >
-                    + Add your first transaction
-                  </button>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Visual Category Breakdown Progress Meters */}
-          <div className="dash-cats">
-            <div className="card">
+            {/* Expense Categories Donut Card */}
+            <div className="card dash-donut-card">
               <div className="card__head-flex">
-                <h3 className="card__title">Top Expense Streams</h3>
+                <h3 className="card__title">Expense Categories</h3>
                 <Link to="/expenses" className="card__sublink">
-                  Full Breakdown →
+                  Breakdown →
                 </Link>
               </div>
               <CategoryProgressList
@@ -503,35 +362,13 @@ function Dashboard(): React.JSX.Element {
                 currencyCode={currencyCode}
                 emptyMessage="No expenses recorded for this timeframe."
                 maxItems={5}
-              />
-            </div>
-
-            <div className="card">
-              <div className="card__head-flex">
-                <h3 className="card__title">Top Income Sources</h3>
-                <Link to="/income" className="card__sublink">
-                  Full Breakdown →
-                </Link>
-              </div>
-              <CategoryProgressList
-                items={incomeCategories}
-                currencyCode={currencyCode}
-                emptyMessage="No income recorded for this timeframe."
-                maxItems={5}
+                centerLabel="Expenses"
               />
             </div>
           </div>
-        </>
+        </div>
       ) : null}
 
-      {/* Quick Add Form from Dashboard */}
-      <TransactionForm
-        open={formOpen}
-        defaultType={formDefaultType}
-        transaction={null}
-        onClose={() => setFormOpen(false)}
-        onSaved={handleTxSaved}
-      />
     </div>
   )
 }

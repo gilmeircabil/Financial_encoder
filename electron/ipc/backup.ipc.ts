@@ -48,7 +48,7 @@ export function registerBackupIpcHandlers(): void {
       title: 'Export backup',
       defaultPath: path.join(app.getPath('documents'), buildBackupFileName()),
       filters: [
-        { name: 'Financial Encoder Backup', extensions: ['febak'] },
+        { name: 'Acorn Backup', extensions: ['febak', 'acornbak'] },
         { name: 'SQLite database', extensions: ['db', 'sqlite'] },
       ],
     })
@@ -66,7 +66,7 @@ export function registerBackupIpcHandlers(): void {
       title: 'Restore from backup file',
       properties: ['openFile'],
       filters: [
-        { name: 'Financial Encoder Backup', extensions: ['febak', 'db', 'sqlite'] },
+        { name: 'Acorn Backup', extensions: ['febak', 'acornbak', 'db', 'sqlite'] },
         { name: 'All files', extensions: ['*'] },
       ],
     })

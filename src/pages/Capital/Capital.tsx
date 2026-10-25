@@ -140,11 +140,6 @@ function Capital(): React.JSX.Element {
     setPage(1)
   }, [period, customFrom, customTo, categoryFilter])
 
-  const openAdd = (): void => {
-    setEditing(null)
-    setFormOpen(true)
-  }
-
   const openEdit = (tx: Transaction): void => {
     setEditing(tx)
     setFormOpen(true)
@@ -217,10 +212,6 @@ function Capital(): React.JSX.Element {
             >
               <Icon name="download" size={15} />
               <span>{exporting ? 'Exporting…' : 'Export CSV'}</span>
-            </button>
-            <button type="button" className="btn btn--primary" onClick={openAdd}>
-              <Icon name="plus" size={15} />
-              <span>Record Capital</span>
             </button>
           </div>
         }
@@ -389,12 +380,7 @@ function Capital(): React.JSX.Element {
             icon="capital"
             title="No capital records"
             description="Log equity investments, capital additions, or owner withdrawals."
-          >
-            <button type="button" className="btn btn--primary" onClick={openAdd}>
-              <Icon name="plus" size={15} />
-              <span>+ Record Capital</span>
-            </button>
-          </EmptyState>
+          />
         ) : (
           <div className="tx-table-wrap">
             <table className="tx-table">

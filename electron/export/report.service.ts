@@ -217,7 +217,7 @@ export function buildHtmlReport(data: ReportData): string {
 
 export async function buildXlsxReport(data: ReportData): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Financial Encoder'
+  workbook.creator = 'Acorn'
 
   const summary = workbook.addWorksheet('Summary')
   summary.columns = [

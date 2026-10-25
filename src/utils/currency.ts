@@ -43,6 +43,23 @@ export function formatCurrency(amount: number, currencyCode: string): string {
   }
 }
 
+/** Formats currency without fractional cents for KPI stat cards (e.g. $3,396, -$16,567,648). */
+export function formatIntegerCurrency(amount: number, currencyCode: string): string {
+  const code = currencyCode.toUpperCase()
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    }).format(toFiniteNumber(amount))
+  } catch {
+    const symbol = currencySymbol(code)
+    const sign = toFiniteNumber(amount) < 0 ? '-' : ''
+    return `${sign}${symbol}${Math.round(Math.abs(toFiniteNumber(amount))).toLocaleString(undefined)}`
+  }
+}
+
 /**
  * Formats a value for chart axes. Sub-million values keep their thousands
  * separators (₱0, ₱1,000, ₱100,000); larger values compact to ₱1.2M.

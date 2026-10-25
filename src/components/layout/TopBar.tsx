@@ -6,14 +6,25 @@ import { Icon } from '../ui/Icon'
 
 interface TopBarProps {
   onOpenAddTransaction?: () => void
-  onOpenShortcuts?: () => void
 }
 
-function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.JSX.Element {
-  const { settings } = useSettings()
+function TopBar({ onOpenAddTransaction }: TopBarProps): React.JSX.Element {
+  const { settings, setSetting } = useSettings()
   const navigate = useNavigate()
   const [now, setNow] = useState(() => new Date())
   const [query, setQuery] = useState('')
+
+  const currentTheme = settings?.theme ?? 'system'
+  const isDark =
+    currentTheme === 'dark' ||
+    (currentTheme === 'system' &&
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  const handleToggleTheme = (): void => {
+    void setSetting('theme', isDark ? 'light' : 'dark')
+  }
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000)
@@ -22,6 +33,9 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
 
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
   const dateLabel = formatDate(now, dateFormat)
+  const hour = now.getHours()
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening'
+  const appName = settings?.appName || 'Acorn'
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
@@ -32,6 +46,10 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
 
   return (
     <header className="topbar">
+      <div className="topbar__greeting">
+        <span className="topbar__greeting-title">{greeting}!</span>
+        <span className="topbar__greeting-sub">{appName}</span>
+      </div>
 
       <form className="topbar__search" role="search" onSubmit={handleSearchSubmit}>
         <span className="topbar__search-icon" aria-hidden="true">
@@ -41,7 +59,7 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
           id="global-search-input"
           type="search"
           className="topbar__search-input"
-          placeholder="Search transactions… (/)"
+          placeholder="Search transactions…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           aria-label="Search transactions"
@@ -56,9 +74,7 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
           >
             <Icon name="x" size={13} />
           </button>
-        ) : (
-          <kbd className="topbar__search-kbd" aria-hidden="true">/</kbd>
-        )}
+        ) : null}
       </form>
 
       <div className="topbar__right">
@@ -67,7 +83,7 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
             type="button"
             className="btn btn--primary btn--sm topbar__add-btn"
             onClick={onOpenAddTransaction}
-            title="Add transaction (Press N)"
+            title="Add transaction"
           >
             <Icon name="plus" size={14} />
             <span>New</span>
@@ -79,17 +95,20 @@ function TopBar({ onOpenAddTransaction, onOpenShortcuts }: TopBarProps): React.J
           <span>{dateLabel}</span>
         </time>
 
-        {onOpenShortcuts && (
-          <button
-            type="button"
-            className="topbar__icon-btn"
-            onClick={onOpenShortcuts}
-            aria-label="Keyboard shortcuts"
-            title="Keyboard shortcuts (Press ?)"
-          >
-            <Icon name="keyboard" size={17} />
-          </button>
-        )}
+        <button
+          type="button"
+          className="topbar__theme-pill"
+          onClick={handleToggleTheme}
+          aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          <span className={`topbar__theme-pill-opt${!isDark ? ' topbar__theme-pill-opt--active' : ''}`}>
+            <Icon name="sun" size={14} />
+          </span>
+          <span className={`topbar__theme-pill-opt${isDark ? ' topbar__theme-pill-opt--active' : ''}`}>
+            <Icon name="moon" size={14} />
+          </span>
+        </button>
 
         <button
           type="button"

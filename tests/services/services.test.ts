@@ -240,16 +240,16 @@ describe('backup service (real files on disk)', () => {
 
     expect(() => validateBackupFile(path.join(path.dirname(backup.path), 'missing.db'))).toThrowError(/does not exist/)
 
-    // A valid SQLite file that is not a Financial Encoder backup.
+    // A valid SQLite file that is not an Acorn backup.
     const junkDb = path.join(path.dirname(backup.path), 'junk.db')
     const junk = new Database(junkDb)
     junk.close()
-    expect(() => validateBackupFile(junkDb)).toThrowError(/not a Financial Encoder backup/)
+    expect(() => validateBackupFile(junkDb)).toThrowError(/not an Acorn backup/)
   })
 
   it('exportBackup copies a snapshot to the chosen destination', async () => {
     seedTransaction({ description: 'export-me' })
-    const dest = path.join(path.dirname(getDb().name), 'backups', 'FinancialEncoder-Backup-2026-09-16.febak')
+    const dest = path.join(path.dirname(getDb().name), 'backups', 'Acorn-Backup-2026-09-16.febak')
     const exported = await exportBackup(dest)
     expect(exported.filePath).toBe(dest)
     expect(fs.existsSync(dest)).toBe(true)
@@ -260,7 +260,7 @@ describe('backup service (real files on disk)', () => {
   it('restores from an external file and keeps a pre-restore safety copy', async () => {
     const before = listTransactions({ page_size: 500 }).transactions.length
     const backup = await createBackup()
-    const extFile = path.join(path.dirname(backup.path), 'FinancialEncoder-Backup-external.febak')
+    const extFile = path.join(path.dirname(backup.path), 'Acorn-Backup-external.febak')
     fs.copyFileSync(backup.path, extFile)
 
     seedTransaction({ description: 'only-in-live-db-again' })
@@ -268,7 +268,7 @@ describe('backup service (real files on disk)', () => {
 
     const result = await restoreFromFile(extFile)
     expect(result.restored).toBe(true)
-    expect(result.filename).toBe('FinancialEncoder-Backup-external.febak')
+    expect(result.filename).toBe('Acorn-Backup-external.febak')
     expect(listTransactions({ search_term: 'only-in-live-db-again' }).total).toBe(0)
 
     const after = listTransactions({ page_size: 500 }).transactions.length
@@ -282,7 +282,7 @@ describe('backup service (real files on disk)', () => {
   it('rejects restoring a corrupt or foreign file', async () => {
     const badFile = path.join(path.dirname(getDb().name), 'bad.febak')
     fs.writeFileSync(badFile, 'garbage data that is definitely not a backup')
-    await expect(restoreFromFile(badFile)).rejects.toThrowError(/not a valid Financial Encoder backup/)
+    await expect(restoreFromFile(badFile)).rejects.toThrowError(/not a valid Acorn backup/)
   })
 })
 
@@ -383,7 +383,7 @@ describe('data reset (start fresh)', () => {
     expect(listCategories().some((c) => c.name === 'Reset Target')).toBe(false)
     expect(listCategories().length).toBeGreaterThan(15)
     expect(getAllSettings().currency).toBe('PHP')
-    expect(getAllSettings().appName).toBe('Financial Encoder')
+    expect(getAllSettings().appName).toBe('Acorn')
 
     const backups = listBackups()
     expect(backups.length).toBe(1)

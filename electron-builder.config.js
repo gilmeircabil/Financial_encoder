@@ -28,8 +28,8 @@ const path = require('path')
 const outputDir = process.env.FE_RELEASE_DIR || path.join(__dirname, 'release')
 
 module.exports = {
-  appId: 'com.financialencoder.app',
-  productName: 'Financial Encoder',
+  appId: 'com.acorn.app',
+  productName: 'Acorn',
   copyright: 'Copyright © 2026 Gilmier Ej Cabil',
   directories: {
     output: outputDir,
@@ -56,7 +56,7 @@ module.exports = {
         arch: ['x64'],
       },
     ],
-    artifactName: 'Financial-Encoder-Setup-${version}.${ext}',
+    artifactName: 'Acorn-Setup-${version}.${ext}',
     icon: 'build/icon.ico',
     // Produces a clean executable/installer that can later be signed with a
     // legitimate certificate (see CSC_LINK above). Defaults to true.

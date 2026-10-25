@@ -9,7 +9,6 @@ export interface SettingsNavItem {
 export const SETTINGS_NAV: SettingsNavItem[] = [
   { path: '/settings/general', label: 'General', icon: 'globe' },
   { path: '/settings/appearance', label: 'Appearance', icon: 'palette' },
-  { path: '/settings/updates', label: 'Updates', icon: 'update' },
   { path: '/settings/backups', label: 'Backups', icon: 'archive' },
   { path: '/settings/about', label: 'About', icon: 'info' },
   { path: '/settings/danger', label: 'Danger zone', icon: 'shield' },

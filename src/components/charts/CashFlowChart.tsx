@@ -1,10 +1,8 @@
+import { useId } from 'react'
 import {
-  Bar,
+  Area,
+  AreaChart,
   CartesianGrid,
-  ComposedChart,
-  Legend,
-  Line,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,10 +23,13 @@ const DEFAULT_LABELS: CashFlowLabels = {
   net: 'Net Cash Flow',
 }
 
+const INFLOW_COLOR = '#7048e8'
+const OUTFLOW_COLOR = '#f59e0b'
+
 interface TooltipPayloadItem {
   dataKey?: string | number
   value?: number | string
-  payload?: CashFlowChartDatum
+  payload?: CashFlowChartDatum & { outflowAbs?: number }
 }
 
 interface CashFlowTooltipProps {
@@ -49,7 +50,7 @@ function CashFlowTooltip({ active, payload, label, currencyCode, labels }: CashF
   }
 
   const inflow = toFiniteNumber(datum.inflow)
-  const outflow = toFiniteNumber(datum.outflow)
+  const outflow = Math.abs(toFiniteNumber(datum.outflow))
   const net = toFiniteNumber(datum.net)
 
   return (
@@ -57,25 +58,25 @@ function CashFlowTooltip({ active, payload, label, currencyCode, labels }: CashF
       <p className="chart-tooltip__title">{datum.fullLabel || label}</p>
       <div className="chart-tooltip__row">
         <span className="chart-tooltip__label">
-          <span className="chart-tooltip__dot" style={{ background: 'var(--success)' }} />
+          <span className="chart-tooltip__swatch" style={{ background: INFLOW_COLOR }} />
           {labels.inflow}
         </span>
         <span className="chart-tooltip__value cf-positive">{formatCurrency(inflow, currencyCode)}</span>
       </div>
       <div className="chart-tooltip__row">
         <span className="chart-tooltip__label">
-          <span className="chart-tooltip__dot" style={{ background: 'var(--danger)' }} />
+          <span className="chart-tooltip__swatch" style={{ background: OUTFLOW_COLOR }} />
           {labels.outflow}
         </span>
         <span className="chart-tooltip__value cf-negative">{formatCurrency(outflow, currencyCode)}</span>
       </div>
       <div className="chart-tooltip__row chart-tooltip__row--net">
         <span className="chart-tooltip__label">
-          <span className="chart-tooltip__dot" style={{ background: 'var(--accent)' }} />
+          <span className="chart-tooltip__dot" style={{ background: 'var(--text)' }} />
           {labels.net}
         </span>
         <span className={`chart-tooltip__value ${net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-          {formatCurrency(net, currencyCode)}
+          {net >= 0 ? '+' : ''}{formatCurrency(net, currencyCode)}
         </span>
       </div>
     </div>
@@ -87,20 +88,28 @@ interface CashFlowChartProps {
   currencyCode: string
   height?: number
   labels?: Partial<CashFlowLabels>
+  rangeText?: string
 }
 
-function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverrides }: CashFlowChartProps): React.JSX.Element {
+function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverrides, rangeText }: CashFlowChartProps): React.JSX.Element {
+  const uid = useId().replace(/:/g, '')
+  const inflowGradId = `inflow-grad-${uid}`
+  const outflowGradId = `outflow-grad-${uid}`
   const labels: CashFlowLabels = { ...DEFAULT_LABELS, ...labelOverrides }
 
-  const chartData = data.map((datum) => ({
-    ...datum,
-    inflow: toFiniteNumber(datum.inflow),
-    outflow: -Math.abs(toFiniteNumber(datum.outflow)),
-    net: toFiniteNumber(datum.net),
-  }))
+  const chartData = data.map((datum) => {
+    const inflow = Math.max(0, toFiniteNumber(datum.inflow))
+    const outflowAbs = Math.abs(toFiniteNumber(datum.outflow))
+    return {
+      ...datum,
+      inflow,
+      outflowAbs,
+      net: toFiniteNumber(datum.net),
+    }
+  })
 
   const hasMovement = chartData.some(
-    (datum) => datum.inflow !== 0 || datum.outflow !== 0 || datum.net !== 0,
+    (datum) => datum.inflow !== 0 || datum.outflowAbs !== 0 || datum.net !== 0,
   )
 
   if (chartData.length === 0 || !hasMovement) {
@@ -112,62 +121,84 @@ function CashFlowChart({ data, currencyCode, height = 300, labels: labelOverride
     )
   }
 
-  const domain = computeChartYDomain(chartData.flatMap((datum) => [datum.inflow, datum.outflow, datum.net]))
+  const [, maxVal] = computeChartYDomain(chartData.flatMap((datum) => [datum.inflow, datum.outflowAbs]))
+  const yDomain: [number, number] = [0, Math.max(100, maxVal)]
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={chartData} margin={{ top: 16, right: 16, left: 4, bottom: 4 }} stackOffset="sign">
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis
-          dataKey="label"
-          tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-          tickLine={false}
-          axisLine={{ stroke: 'var(--border)' }}
-          tickMargin={8}
-          minTickGap={20}
-          interval="preserveStartEnd"
-        />
-        <YAxis
-          tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-          tickLine={false}
-          axisLine={false}
-          width={68}
-          domain={domain}
-          tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
-        />
-        <ReferenceLine y={0} stroke="var(--border-strong)" strokeWidth={1} />
-        <Tooltip
-          cursor={{ fill: 'var(--bg-hover)', fillOpacity: 0.6 }}
-          content={<CashFlowTooltip currencyCode={currencyCode} labels={labels} />}
-        />
-        <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} iconType="circle" />
-        <Bar
-          dataKey="inflow"
-          name={labels.inflow}
-          fill="var(--success)"
-          stackId="cashflow"
-          maxBarSize={32}
-          radius={[3, 3, 0, 0]}
-        />
-        <Bar
-          dataKey="outflow"
-          name={labels.outflow}
-          fill="var(--danger)"
-          stackId="cashflow"
-          maxBarSize={32}
-          radius={[0, 0, 3, 3]}
-        />
-        <Line
-          dataKey="net"
-          name={labels.net}
-          type="monotone"
-          stroke="var(--accent)"
-          strokeWidth={2.5}
-          dot={{ r: 4, stroke: 'var(--bg-surface)', strokeWidth: 2, fill: 'var(--accent)' }}
-          activeDot={{ r: 6, stroke: 'var(--bg-surface)', strokeWidth: 2, fill: 'var(--accent)' }}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+    <div className="cf-spline-wrap">
+      <div className="cf-spline-legend">
+        <div className="cf-spline-legend__items">
+          <span className="cf-spline-legend__item">
+            <span className="cf-spline-legend__swatch" style={{ background: INFLOW_COLOR }} />
+            <span>{labels.inflow}</span>
+          </span>
+          <span className="cf-spline-legend__item">
+            <span className="cf-spline-legend__swatch" style={{ background: OUTFLOW_COLOR }} />
+            <span>{labels.outflow}</span>
+          </span>
+        </div>
+        {rangeText ? (
+          <span className="cf-spline-legend__range">{rangeText}</span>
+        ) : null}
+      </div>
+
+      <ResponsiveContainer width="100%" height={height}>
+        <AreaChart data={chartData} margin={{ top: 14, right: 16, left: 4, bottom: 4 }}>
+          <defs>
+            <linearGradient id={inflowGradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={INFLOW_COLOR} stopOpacity={0.28} />
+              <stop offset="95%" stopColor={INFLOW_COLOR} stopOpacity={0.0} />
+            </linearGradient>
+            <linearGradient id={outflowGradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={OUTFLOW_COLOR} stopOpacity={0.22} />
+              <stop offset="95%" stopColor={OUTFLOW_COLOR} stopOpacity={0.0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+            tickLine={false}
+            axisLine={{ stroke: 'var(--border)' }}
+            tickMargin={10}
+            minTickGap={20}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+            tickLine={false}
+            axisLine={false}
+            width={68}
+            domain={yDomain}
+            tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
+          />
+          <Tooltip
+            cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1, strokeDasharray: '4 4' }}
+            content={<CashFlowTooltip currencyCode={currencyCode} labels={labels} />}
+          />
+          <Area
+            type="monotone"
+            dataKey="inflow"
+            name={labels.inflow}
+            stroke={INFLOW_COLOR}
+            strokeWidth={2.5}
+            fill={`url(#${inflowGradId})`}
+            dot={false}
+            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2.5, fill: INFLOW_COLOR }}
+          />
+          <Area
+            type="monotone"
+            dataKey="outflowAbs"
+            name={labels.outflow}
+            stroke={OUTFLOW_COLOR}
+            strokeWidth={2.5}
+            fill={`url(#${outflowGradId})`}
+            dot={false}
+            activeDot={{ r: 5, stroke: 'var(--bg-surface)', strokeWidth: 2.5, fill: OUTFLOW_COLOR }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
 

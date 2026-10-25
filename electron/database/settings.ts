@@ -3,7 +3,7 @@ import { getDb } from './connection'
 import type { AppSettings } from '../types/ipc'
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  appName: 'Financial Encoder',
+  appName: 'Acorn',
   currency: 'PHP',
   dateFormat: 'YYYY-MM-DD',
   theme: 'system',

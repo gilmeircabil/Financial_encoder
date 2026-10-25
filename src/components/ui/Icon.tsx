@@ -12,7 +12,6 @@ export type IconName =
   | 'documents'
   | 'settings'
   | 'search'
-  | 'update'
   | 'globe'
   | 'calendar'
   | 'palette'
@@ -28,6 +27,7 @@ export type IconName =
   | 'filter'
   | 'arrowUp'
   | 'arrowDown'
+  | 'arrowUpRight'
   | 'wallet'
   | 'trendingUp'
   | 'trendingDown'
@@ -97,12 +97,6 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M12 3v12" />
       <path d="m8 11 4 4 4-4" />
       <path d="M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
-    </>
-  ),
-  update: (
-    <>
-      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-      <path d="M21 3v4.5h-4.5" />
     </>
   ),
   documents: (
@@ -220,6 +214,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M12 5v14" />
       <path d="m19 12-7 7-7-7" />
+    </>
+  ),
+  arrowUpRight: (
+    <>
+      <path d="M7 17 17 7" />
+      <path d="M7 7h10v10" />
     </>
   ),
   wallet: (
