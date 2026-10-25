@@ -1,11 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { COUNTRIES, type CountryCurrency } from '../../data/countryCurrency'
+import { CURRENCIES, findCurrencyByCode, type CurrencyEntry } from '../../data/countryCurrency'
 import { Icon } from './Icon'
 
 interface CurrencySelectProps {
   value: string
-  onChange: (code: string, country: string) => void
+  onChange: (code: string) => void
   disabled?: boolean
   placeholder?: string
 }
@@ -26,7 +26,7 @@ function badgeStyle(code: string): CSSProperties {
   }
 }
 
-function HighlightedName({ text, query }: { text: string; query: string }): React.JSX.Element {
+function HighlightedText({ text, query }: { text: string; query: string }): React.JSX.Element {
   const q = query.trim()
   if (!q) {
     return <>{text}</>
@@ -44,7 +44,12 @@ function HighlightedName({ text, query }: { text: string; query: string }): Reac
   )
 }
 
-function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Search your country…' }: CurrencySelectProps): React.JSX.Element {
+function CurrencySelect({
+  value,
+  onChange,
+  disabled = false,
+  placeholder = 'Search currency (e.g. USD, US Dollar, East Timor)…',
+}: CurrencySelectProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlighted, setHighlighted] = useState(0)
@@ -54,36 +59,34 @@ function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Sear
   const listboxId = useId()
 
   const current = useMemo(
-    () => COUNTRIES.find((c) => c.code === value.toUpperCase()),
+    () => findCurrencyByCode(value) ?? CURRENCIES.find((c) => c.code === value.toUpperCase()),
     [value],
   )
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) {
-      return COUNTRIES
+      return CURRENCIES
     }
-    const scored: { entry: CountryCurrency; rank: number }[] = []
-    for (const entry of COUNTRIES) {
-      const name = entry.country.toLowerCase()
+    const scored: { entry: CurrencyEntry; rank: number }[] = []
+    for (const entry of CURRENCIES) {
       const code = entry.code.toLowerCase()
-      const nameIndex = name.indexOf(q)
-      const codeIndex = code.indexOf(q)
-      if (nameIndex === -1 && codeIndex === -1) {
-        continue
+      const name = entry.name.toLowerCase()
+      const displayName = entry.displayName.toLowerCase()
+      const countryMatch = entry.countries.some((c) => c.toLowerCase().includes(q))
+
+      let rank = -1
+      if (code === q) rank = 0
+      else if (code.startsWith(q)) rank = 1
+      else if (displayName.includes(q)) rank = 2
+      else if (name.includes(q)) rank = 3
+      else if (countryMatch) rank = 4
+
+      if (rank !== -1) {
+        scored.push({ entry, rank })
       }
-      let rank: number
-      if (nameIndex === 0) rank = 0
-      else if (codeIndex === 0) rank = 1
-      else if (nameIndex !== -1) rank = 2
-      else rank = 3
-      scored.push({ entry, rank })
     }
-    scored.sort(
-      (a, b) =>
-        a.rank - b.rank ||
-        a.entry.country.localeCompare(b.entry.country),
-    )
+    scored.sort((a, b) => a.rank - b.rank || a.entry.code.localeCompare(b.entry.code))
     return scored.map((s) => s.entry)
   }, [query])
 
@@ -120,8 +123,8 @@ function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Sear
     node?.scrollIntoView({ block: 'nearest' })
   }, [highlighted])
 
-  const select = (entry: CountryCurrency): void => {
-    onChange(entry.code, entry.country)
+  const select = (entry: CurrencyEntry): void => {
+    onChange(entry.code)
     setOpen(false)
     setQuery('')
   }
@@ -164,7 +167,7 @@ function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Sear
             <Icon name="search" size={15} />
           ) : (
             <span className="currency-select__badge" style={badgeStyle(activeCode)}>
-              {current?.symbol ?? value.toUpperCase()}
+              {current?.symbol ?? activeCode}
             </span>
           )}
         </span>
@@ -177,7 +180,7 @@ function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Sear
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-activedescendant={open && results.length > 0 ? `${listboxId}-${highlighted}` : undefined}
-          value={open ? query : current?.country ?? ''}
+          value={open ? query : (current?.displayName ?? value.toUpperCase())}
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"
@@ -199,7 +202,7 @@ function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Sear
             setOpen((o) => !o)
           }}
           disabled={disabled}
-          aria-label={open ? 'Close country list' : 'Open country list'}
+          aria-label={open ? 'Close currency list' : 'Open currency list'}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <path
@@ -217,53 +220,55 @@ function CurrencySelect({ value, onChange, disabled = false, placeholder = 'Sear
           id={listboxId}
           className="currency-select__list"
           role="listbox"
-          aria-label="Countries"
+          aria-label="Currencies"
         >
           {results.length === 0 ? (
             <li className="currency-select__empty">
               <Icon name="search" size={16} />
-              No countries match “{query}”
+              No currencies match “{query}”
             </li>
           ) : (
             <>
               <li className="currency-select__count" aria-hidden="true">
-                {query.trim() ? `${results.length} result${results.length === 1 ? '' : 's'}` : `${results.length} countries`}
+                {query.trim() ? `${results.length} result${results.length === 1 ? '' : 's'}` : `${results.length} currencies`}
               </li>
-              {results.map((entry, index) => (
-                <li
-                  key={`${entry.code}-${entry.country}`}
-                  id={`${listboxId}-${index}`}
-                  data-index={index}
-                  role="option"
-                  aria-selected={entry.code === value.toUpperCase()}
-                  className={`currency-select__option${index === highlighted ? ' currency-select__option--active' : ''}${entry.code === value.toUpperCase() ? ' currency-select__option--selected' : ''}`}
-                  onMouseEnter={() => setHighlighted(index)}
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    select(entry)
-                  }}
-                >
-                  <span className="currency-select__badge" style={badgeStyle(entry.code)}>
-                    {entry.symbol}
-                  </span>
-                  <span className="currency-select__option-name">
-                    <HighlightedName text={entry.country} query={query} />
-                  </span>
-                  <span className="currency-select__option-code">{entry.code}</span>
-                  <span className="currency-select__check" aria-hidden="true">
-                    <svg viewBox="0 0 16 16" width="14" height="14">
-                      <path
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3.5 8.5 6.5 11.5 12.5 4.5"
-                      />
-                    </svg>
-                  </span>
-                </li>
-              ))}
+              {results.map((entry, index) => {
+                const isSelected = entry.code === value.toUpperCase()
+                return (
+                  <li
+                    key={entry.code}
+                    id={`${listboxId}-${index}`}
+                    data-index={index}
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`currency-select__option${index === highlighted ? ' currency-select__option--active' : ''}${isSelected ? ' currency-select__option--selected' : ''}`}
+                    onMouseEnter={() => setHighlighted(index)}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      select(entry)
+                    }}
+                  >
+                    <span className="currency-select__badge" style={badgeStyle(entry.code)}>
+                      {entry.symbol}
+                    </span>
+                    <span className="currency-select__option-name">
+                      <HighlightedText text={entry.displayName} query={query} />
+                    </span>
+                    <span className="currency-select__check" aria-hidden="true">
+                      <svg viewBox="0 0 16 16" width="14" height="14">
+                        <path
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3.5 8.5 6.5 11.5 12.5 4.5"
+                        />
+                      </svg>
+                    </span>
+                  </li>
+                )
+              })}
             </>
           )}
         </ul>

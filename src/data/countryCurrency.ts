@@ -4,6 +4,14 @@ export interface CountryCurrency {
   symbol: string
 }
 
+export interface CurrencyEntry {
+  code: string
+  name: string
+  symbol: string
+  displayName: string // e.g. "USD – US Dollar"
+  countries: string[]
+}
+
 export const COUNTRIES: CountryCurrency[] = [
   { country: 'Afghanistan', code: 'AFN', symbol: '؋' },
   { country: 'Albania', code: 'ALL', symbol: 'L' },
@@ -181,6 +189,85 @@ export const COUNTRIES: CountryCurrency[] = [
   { country: 'Zimbabwe', code: 'ZWL', symbol: 'Z$' },
 ]
 
+const currencyDisplayNames = typeof Intl !== 'undefined' && 'DisplayNames' in Intl
+  ? new Intl.DisplayNames(['en'], { type: 'currency' })
+  : null
+
+function getCurrencyName(code: string): string {
+  if (currencyDisplayNames) {
+    try {
+      const name = currencyDisplayNames.of(code)
+      if (name) return name
+    } catch {
+      // ignore
+    }
+  }
+  return code
+}
+
+// Build unique list of currencies
+const currencyMap = new Map<string, CurrencyEntry>()
+
+for (const entry of COUNTRIES) {
+  const code = entry.code.toUpperCase()
+  let curr = currencyMap.get(code)
+  if (!curr) {
+    const name = getCurrencyName(code)
+    curr = {
+      code,
+      name,
+      symbol: entry.symbol,
+      displayName: `${code} – ${name}`,
+      countries: [entry.country],
+    }
+    currencyMap.set(code, curr)
+  } else {
+    curr.countries.push(entry.country)
+  }
+}
+
+export const CURRENCIES: CurrencyEntry[] = [...currencyMap.values()].sort((a, b) =>
+  a.code.localeCompare(b.code),
+)
+
+// Map country names, symbols, and legacy strings to 3-letter ISO currency code
+const LEGACY_MAP: Record<string, string> = {
+  'east timor': 'USD',
+  'united states': 'USD',
+  'united states of america': 'USD',
+  'philippines': 'PHP',
+  '$': 'USD',
+  '₱': 'PHP',
+  '€': 'EUR',
+  '£': 'GBP',
+  '¥': 'JPY',
+}
+
+for (const c of COUNTRIES) {
+  LEGACY_MAP[c.country.toLowerCase()] = c.code.toUpperCase()
+}
+
+/**
+ * Normalizes any stored currency string (country name, symbol, or code) to valid 3-letter ISO code.
+ */
+export function normalizeToIsoCurrency(input?: string | null): string {
+  if (!input) return 'USD'
+  const trimmed = input.trim()
+  if (/^[A-Za-z]{3}$/.test(trimmed)) {
+    return trimmed.toUpperCase()
+  }
+  const match = LEGACY_MAP[trimmed.toLowerCase()]
+  if (match) {
+    return match
+  }
+  return 'USD'
+}
+
 export function findCountryByCode(code: string): CountryCurrency | undefined {
   return COUNTRIES.find((c) => c.code === code.toUpperCase())
+}
+
+export function findCurrencyByCode(code: string): CurrencyEntry | undefined {
+  const normalized = normalizeToIsoCurrency(code)
+  return CURRENCIES.find((c) => c.code === normalized)
 }

@@ -4,7 +4,7 @@ import SettingsSection from '../../components/ui/SettingsSection'
 import CurrencySelect from '../../components/ui/CurrencySelect'
 import FieldStatus from '../../components/ui/FieldStatus'
 import { useSettings } from '../../contexts/SettingsContext'
-import { currencySymbol, formatCurrency } from '../../utils/currency'
+import { fmt } from '../../utils/currency'
 import { todayFormatted } from '../../utils/dates'
 import { useSettingSave } from '../../hooks/useSettingSave'
 
@@ -77,8 +77,7 @@ function SettingsGeneral(): React.JSX.Element | null {
               <FieldStatus active={saving === 'currency'} saved={savedKey === 'currency'} />
             </div>
             <span className="field__hint">
-              Symbol: <span className="field__hint-value">{currencySymbol(settings.currency)}</span>
-              <span className="field__hint-sample">{formatCurrency(1234567.89, settings.currency)}</span>
+              Sample: <span className="field__hint-value">{fmt(1234567.89, settings.currency)}</span>
             </span>
           </div>
 

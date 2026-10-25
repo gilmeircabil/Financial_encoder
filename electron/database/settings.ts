@@ -25,11 +25,45 @@ const VALID_THEMES = new Set(['light', 'dark', 'system'])
 const VALID_DATE_FORMAT_PATTERN = /^[YMD\-\/.\s]+$/
 const CONTROL_CHARS = /[\u0000-\u001f]/
 
+const LEGACY_COUNTRY_TO_ISO: Record<string, string> = {
+  'east timor': 'USD',
+  'united states': 'USD',
+  'united states of america': 'USD',
+  'philippines': 'PHP',
+  'united kingdom': 'GBP',
+  'germany': 'EUR',
+  'france': 'EUR',
+  'spain': 'EUR',
+  'italy': 'EUR',
+  'japan': 'JPY',
+  'canada': 'CAD',
+  'australia': 'AUD',
+  'singapore': 'SGD',
+  '$': 'USD',
+  '₱': 'PHP',
+  '€': 'EUR',
+  '£': 'GBP',
+  '¥': 'JPY',
+}
+
+export function normalizeCurrencyToIso(val: string): string {
+  if (!val) return 'USD'
+  const trimmed = val.trim()
+  if (/^[A-Za-z]{3}$/.test(trimmed)) {
+    return trimmed.toUpperCase()
+  }
+  const match = LEGACY_COUNTRY_TO_ISO[trimmed.toLowerCase()]
+  if (match) {
+    return match
+  }
+  return 'USD'
+}
+
 export function isAppSettingKey(value: unknown): value is keyof AppSettings {
   return typeof value === 'string' && value in SETTING_KEYS
 }
 
-/** Returns all settings merged over their defaults. */
+/** Returns all settings merged over their defaults, migrating any legacy currency value to ISO code. */
 export function getAllSettings(): AppSettings {
   const db = getDb()
   const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[]
@@ -37,6 +71,15 @@ export function getAllSettings(): AppSettings {
   for (const row of rows) {
     persisted[row.key] = row.value
   }
+
+  if (persisted.currency) {
+    const normalized = normalizeCurrencyToIso(persisted.currency)
+    if (normalized !== persisted.currency) {
+      db.prepare("UPDATE settings SET value = ?, updated_at = datetime('now') WHERE key = 'currency'").run(normalized)
+      persisted.currency = normalized
+    }
+  }
+
   return { ...DEFAULT_SETTINGS, ...persisted } as AppSettings
 }
 
@@ -54,8 +97,9 @@ export function setSetting(key: keyof AppSettings, value: string): AppSettings {
   if (key === 'theme' && !VALID_THEMES.has(value)) {
     throw new Error(`Invalid theme value: ${value}`)
   }
-  if (key === 'currency' && !/^[A-Za-z]{3}$/.test(value)) {
-    throw new Error(`Invalid currency code: ${value}`)
+  let finalValue = value
+  if (key === 'currency') {
+    finalValue = normalizeCurrencyToIso(value)
   }
   if (key === 'dateFormat' && !VALID_DATE_FORMAT_PATTERN.test(value)) {
     throw new Error('Invalid date format.')
@@ -71,7 +115,7 @@ export function setSetting(key: keyof AppSettings, value: string): AppSettings {
     `INSERT INTO settings (key, value, updated_at)
      VALUES (?, ?, datetime('now'))
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
-  ).run(key, value)
+  ).run(key, finalValue)
 
   return getAllSettings()
 }

@@ -1,17 +1,38 @@
-const FALLBACK_SYMBOLS: Record<string, string> = {
-  PHP: '₱',
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  JPY: '¥',
-  AUD: 'A$',
-  CAD: 'C$',
-  SGD: 'S$',
+/**
+ * Currency formatting utilities for Financial Encoder (Acorn).
+ * Built on native Intl.NumberFormat with zero manual symbol concatenation.
+ */
+
+export interface FmtOptions {
+  compact?: boolean
 }
 
-/** Symbol for a currency code, defaulting to the code itself when unknown. */
-export function currencySymbol(code: string): string {
-  return FALLBACK_SYMBOLS[code.toUpperCase()] ?? code.toUpperCase()
+/**
+ * Primary currency formatter built on Intl.NumberFormat.
+ * Supports compact notation and formats negative numbers consistently (e.g. -$1,234.00).
+ */
+export const fmt = (
+  n: number,
+  currency: string,
+  { compact = false }: FmtOptions = {},
+): string => {
+  const safe = Number.isFinite(n) ? n : 0
+  const code = (currency || 'USD').toUpperCase().trim()
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      notation: compact ? 'compact' : 'standard',
+      maximumFractionDigits: compact ? 1 : 2,
+    }).format(safe)
+  } catch {
+    const sign = safe < 0 ? '-' : ''
+    const abs = Math.abs(safe)
+    return `${sign}${code} ${abs.toLocaleString(undefined, {
+      minimumFractionDigits: compact ? 0 : 2,
+      maximumFractionDigits: compact ? 1 : 2,
+    })}`
+  }
 }
 
 /** Coerces a possibly invalid value into a finite number (defaults to 0). */
@@ -19,70 +40,32 @@ export function toFiniteNumber(value: number): number {
   return Number.isFinite(value) ? value : 0
 }
 
-/**
- * Formats a peso-style amount using the locale's currency rules.
- * Falls back to a safe symbol+number rendering if the Intl currency formatter
- * does not recognise the code.
- */
+/** Symbol for a currency code, resolved dynamically using Intl.NumberFormat. */
+export function currencySymbol(code: string): string {
+  const normalized = (code || 'USD').toUpperCase().trim()
+  try {
+    const parts = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: normalized,
+    }).formatToParts(1)
+    const symbolPart = parts.find((p) => p.type === 'currency')
+    return symbolPart?.value ?? normalized
+  } catch {
+    return normalized
+  }
+}
+
+/** Formats an amount using standard currency rules with 2 decimal places. */
 export function formatCurrency(amount: number, currencyCode: string): string {
-  const code = currencyCode.toUpperCase()
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(toFiniteNumber(amount))
-  } catch {
-    const symbol = currencySymbol(code)
-    const sign = toFiniteNumber(amount) < 0 ? '-' : ''
-    return `${sign}${symbol}${Math.abs(toFiniteNumber(amount)).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`
-  }
+  return fmt(amount, currencyCode, { compact: false })
 }
 
-/** Formats currency without fractional cents for KPI stat cards (e.g. $3,396, -$16,567,648). */
-export function formatIntegerCurrency(amount: number, currencyCode: string): string {
-  const code = currencyCode.toUpperCase()
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: code,
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0,
-    }).format(toFiniteNumber(amount))
-  } catch {
-    const symbol = currencySymbol(code)
-    const sign = toFiniteNumber(amount) < 0 ? '-' : ''
-    return `${sign}${symbol}${Math.round(Math.abs(toFiniteNumber(amount))).toLocaleString(undefined)}`
-  }
-}
-
-/**
- * Formats a value for chart axes. Sub-million values keep their thousands
- * separators (₱0, ₱1,000, ₱100,000); larger values compact to ₱1.2M.
- */
+/** Formats currency with compact notation (e.g. $13.4M). */
 export function formatCompactCurrency(amount: number, currencyCode: string): string {
-  const code = currencyCode.toUpperCase()
-  const safe = toFiniteNumber(amount)
-  const useCompact = Math.abs(safe) >= 1_000_000
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: code,
-      ...(useCompact ? { notation: 'compact', compactDisplay: 'short' } : {}),
-      maximumFractionDigits: useCompact ? 1 : 0,
-      minimumFractionDigits: 0,
-    }).format(safe)
-  } catch {
-    const symbol = currencySymbol(code)
-    const sign = safe < 0 ? '-' : ''
-    const abs = Math.abs(safe)
-    if (abs >= 1_000_000) {
-      return `${sign}${symbol}${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`
-    }
-    return `${sign}${symbol}${Math.round(abs).toLocaleString()}`
-  }
+  return fmt(amount, currencyCode, { compact: true })
+}
+
+/** Formats integer currency or standard display for stat cards. */
+export function formatIntegerCurrency(amount: number, currencyCode: string): string {
+  return fmt(amount, currencyCode, { compact: false })
 }

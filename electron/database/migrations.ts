@@ -84,6 +84,29 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    name: 'migrate currency setting to ISO 4217 code',
+    up(db) {
+      const row = db.prepare("SELECT value FROM settings WHERE key = 'currency'").get() as { value: string } | undefined
+      if (row && row.value && !/^[A-Za-z]{3}$/.test(row.value.trim())) {
+        const legacy = row.value.trim().toLowerCase()
+        let code = 'USD'
+        if (legacy === 'east timor' || legacy.includes('united states') || legacy === '$') {
+          code = 'USD'
+        } else if (legacy.includes('philippine') || legacy.includes('peso') || legacy === 'php' || legacy === '₱') {
+          code = 'PHP'
+        } else if (legacy.includes('euro') || legacy === '€') {
+          code = 'EUR'
+        } else if (legacy.includes('pound') || legacy === '£') {
+          code = 'GBP'
+        } else if (legacy.includes('yen') || legacy === '¥') {
+          code = 'JPY'
+        }
+        db.prepare("UPDATE settings SET value = ?, updated_at = datetime('now') WHERE key = 'currency'").run(code)
+      }
+    },
+  },
 ]
 
 export function ensureMigrationTable(db: Database.Database): void {
