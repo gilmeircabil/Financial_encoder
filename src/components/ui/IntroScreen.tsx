@@ -50,7 +50,7 @@ export function IntroScreen({ onEnter }: IntroScreenProps): React.JSX.Element {
         </p>
 
         <div className="intro-badges">
-          <span className="intro-badge">Offline &amp; Encrypted</span>
+          <span className="intro-badge">Offline &amp; Local Vault</span>
           <span className="intro-badge">Institutional Cleanroom</span>
           <span className="intro-badge">Zero Telemetry</span>
         </div>

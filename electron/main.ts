@@ -40,6 +40,9 @@ const isDev = !!process.env.VITE_DEV_SERVER_URL
 
 let mainWindow: BrowserWindow | null = null
 
+const BACKUP_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000 // Check every 6 hours during long-running sessions
+let backupInterval: NodeJS.Timeout | null = null
+
 const VALID_LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
 const MAX_LOG_MESSAGE_LENGTH = 4000
 
@@ -256,6 +259,12 @@ app.whenReady().then(() => {
     void createDailyBackupIfDue().catch((err) => {
       logger.warn('automatic startup backup skipped', err instanceof Error ? err.message : String(err))
     })
+    // Recurring periodic check for long-running sessions
+    backupInterval = setInterval(() => {
+      void createDailyBackupIfDue().catch((err) => {
+        logger.warn('recurring daily backup check failed', err instanceof Error ? err.message : String(err))
+      })
+    }, BACKUP_CHECK_INTERVAL_MS)
   } catch (err) {
     logger.error('startup database init failed', err instanceof Error ? { message: err.message } : String(err))
   }
@@ -269,6 +278,10 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  if (backupInterval) {
+    clearInterval(backupInterval)
+    backupInterval = null
+  }
   if (process.platform !== 'darwin') {
     closeDatabase()
     app.quit()

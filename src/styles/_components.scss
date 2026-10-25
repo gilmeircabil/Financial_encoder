@@ -594,6 +594,27 @@
   color: var(--text-faint);
 }
 
+.settings-notice-card {
+  padding: 14px 16px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  line-height: 1.6;
+
+  &__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-strong);
+    margin: 0 0 6px 0;
+  }
+
+  &__body {
+    color: var(--text-muted);
+    margin: 0;
+  }
+}
+
 .settings-empty {
   display: flex;
   flex-direction: column;

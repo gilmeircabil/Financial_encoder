@@ -1,5 +1,25 @@
 # Financial Encoder — Release Notes
 
+## v1.0.13 (October 25, 2026) — Financial Logic, Currency Standards & Chart Overhaul
+
+### Financial Architecture & Calculations
+- **Pure Financial Logic**: Centralized core accounting math in `src/lib/finance.ts` across Dashboard, Cash Flow, Reports, and exports. Net profit strictly excludes capital contributions.
+- **Cash Position & Equity**: Separated operational Net Profit from total Cash Position and owner Net Equity.
+- **Standardized Currency Formatting**: Replaced ad-hoc concatenation with native `Intl.NumberFormat`, migrating legacy settings to ISO 4217 standard codes (`USD`, `PHP`, etc.) and resolving symbol doubling.
+
+### Charts & Data Visualization
+- **Grouped Bar Charts**: Cash Flow and Monthly trends now display grouped bars with net trajectory lines, eliminating confusing diagonal curves from $0.
+- **Dynamic X-Axis Domain**: Series automatically trim trailing empty months so charts fit active timelines across 100% of the canvas.
+- **Human-Friendly Y-Axis Ticks**: Intelligent round number ticks (`0`, `10M`, `20M`, `30M`) instead of raw fractional steps.
+- **Deterministic Category Palette**: FNV-1a hash maps category names to consistent colors across donut charts, legend swatches, and ledger badges.
+- **Donut Chart Optimization**: Filtered zero-value stubs and grouped slices under 1% into "Other".
+
+### Ledger & Table Productivity
+- **Sortable Columns**: Full ascending/descending database sorting by Date, Description, Amount, Type, and Category with active indicators.
+- **Sticky Table Header**: Transaction headers remain fixed during vertical scrolling.
+- **Running Balance Column**: Optional toolbar toggle displaying progressive cash balances across transactions.
+- **Bulk Selection & Safe Deletion**: Row checkboxes with multi-item batch deletion safeguarded by confirmation dialogs.
+
 ## v1.0.12 (September 25, 2026) — Improve UI/UX
 
 ### UI & UX Transformation
