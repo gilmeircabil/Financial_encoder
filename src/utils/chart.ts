@@ -25,10 +25,10 @@ function shortParts(key: string): { y: number; m: number; d: number } {
   return { y, m, d }
 }
 
-function monthDatum(key: string): { label: string; fullLabel: string } {
+function monthDatum(key: string, sameYear = false): { label: string; fullLabel: string } {
   const { y, m } = shortParts(key)
   return {
-    label: `${MONTHS_SHORT[m - 1]} ${y}`,
+    label: sameYear ? MONTHS_SHORT[m - 1] : `${MONTHS_SHORT[m - 1]} ${y}`,
     fullLabel: `${MONTHS_LONG[m - 1]} ${y}`,
   }
 }
@@ -53,17 +53,26 @@ function weekDatum(key: string): { label: string; fullLabel: string } {
 export function cashFlowPointsToChartData(
   points: CashFlowPoint[],
   granularity: CashFlowGranularity,
+  includeCapital = true,
 ): CashFlowChartDatum[] {
+  const years = new Set(points.map((p) => p.key.slice(0, 4)))
+  const sameYear = years.size <= 1
   return points.map((point) => {
     const label =
-      granularity === 'month' ? monthDatum(point.key) : granularity === 'week' ? weekDatum(point.key) : dayDatum(point.key)
+      granularity === 'month'
+        ? monthDatum(point.key, sameYear)
+        : granularity === 'week'
+          ? weekDatum(point.key)
+          : dayDatum(point.key)
+    const inflow = includeCapital ? point.income + (point.capital || 0) : point.income
+    const outflow = includeCapital ? point.expense + (point.withdrawal || 0) : point.expense
     return {
       key: point.key,
       label: label.label,
       fullLabel: label.fullLabel,
-      inflow: point.income,
-      outflow: point.expense,
-      net: point.income - point.expense,
+      inflow,
+      outflow,
+      net: inflow - outflow,
     }
   })
 }
@@ -76,10 +85,12 @@ export function monthlyToCashFlowChartData(
   rows: MonthlySummary[],
   includeCapital: boolean,
 ): CashFlowChartDatum[] {
+  const years = new Set(rows.map((r) => r.month.slice(0, 4)))
+  const sameYear = years.size <= 1
   return rows.map((row) => {
     const inflow = includeCapital ? row.income + row.capital : row.income
     const outflow = includeCapital ? row.expense + row.withdrawal : row.expense
-    const label = monthDatum(row.month)
+    const label = monthDatum(row.month, sameYear)
     return {
       key: row.month,
       label: label.label,
@@ -91,46 +102,12 @@ export function monthlyToCashFlowChartData(
   })
 }
 
-/**
- * Builds a padded Y-axis domain that always includes zero.
- *
- * - all-zero data gets a small symmetric domain
- * - all-positive data starts at zero
- * - all-negative data ends at zero
- * - mixed data is padded above and below
- */
-export function computeChartYDomain(values: number[]): [number, number] {
-  let min = 0
-  let max = 0
-
-  for (const value of values) {
-    if (!Number.isFinite(value)) {
-      continue
-    }
-    if (value < min) {
-      min = value
-    }
-    if (value > max) {
-      max = value
-    }
-  }
-
-  if (min === 0 && max === 0) {
-    return [0, 1]
-  }
-
-  const span = max - min
-  const padding = span > 0 ? span * 0.12 : Math.max(Math.abs(max), Math.abs(min), 1) * 0.12
-
-  return [min < 0 ? min - padding : 0, max > 0 ? max + padding : 0]
-}
-
 /** Curated palette of stable, distinct, and accessible colors for financial categories. */
 export const CATEGORY_PALETTE: readonly string[] = [
-  '#8b5cf6', // Finly Purple
-  '#06b6d4', // Cyan
-  '#3b82f6', // Blue
+  '#8067ff', // Violet / Purple
+  '#22d3ee', // Cyan
   '#10b981', // Emerald
+  '#f87171', // Coral Red
   '#f59e0b', // Amber
   '#ec4899', // Pink
   '#a3e635', // Lime

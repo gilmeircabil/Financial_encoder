@@ -263,10 +263,6 @@ export function normalizeToIsoCurrency(input?: string | null): string {
   return 'USD'
 }
 
-export function findCountryByCode(code: string): CountryCurrency | undefined {
-  return COUNTRIES.find((c) => c.code === code.toUpperCase())
-}
-
 export function findCurrencyByCode(code: string): CurrencyEntry | undefined {
   const normalized = normalizeToIsoCurrency(code)
   return CURRENCIES.find((c) => c.code === normalized)

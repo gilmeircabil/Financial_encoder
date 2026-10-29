@@ -3,11 +3,14 @@ import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
 import CashFlowChart from '../../components/charts/CashFlowChart'
 import CategoryProgressList from '../../components/ui/CategoryProgressList'
+import { KpiCard } from '../../components/ui/KpiCard'
+import { Button } from '../../components/ui/Button'
+import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Icon } from '../../components/ui/Icon'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
+import { formatCurrency } from '../../utils/currency'
 import { computeFinance } from '../../lib/finance'
 import { useDateRange } from '../../contexts/DateRangeContext'
 import { GlobalDateRangeSelector } from '../../components/ui/GlobalDateRangeSelector'
@@ -127,36 +130,66 @@ function Reports(): React.JSX.Element {
   const expenseCategories = useMemo(() => breakdown.filter((b) => b.type === 'expense'), [breakdown])
   const incomeCategories = useMemo(() => breakdown.filter((b) => b.type === 'income'), [breakdown])
 
+  // Count distinct income and expense transactions for contextual subtext
+  const incomeCount = useMemo(() => incomeCategories.reduce((acc, c) => acc + c.count, 0), [incomeCategories])
+  const expenseCount = useMemo(() => expenseCategories.reduce((acc, c) => acc + c.count, 0), [expenseCategories])
+
+  // Outlier detection for dominant single-category expenditure
+  const dominantOutflow = useMemo(() => {
+    if (!totals || totals.expense <= 0) return null
+    const top = [...expenseCategories].sort((a, b) => b.total - a.total)[0]
+    if (top && top.total >= 1_000_000 && (top.total / totals.expense) >= 0.5) {
+      return {
+        category: top.category_name,
+        amount: top.total,
+        pct: Math.round((top.total / totals.expense) * 100),
+      }
+    }
+    return null
+  }, [totals, expenseCategories])
+
+  // Reconciled totals for the monthly ledger summary table
+  const monthlyTotals = useMemo(() => {
+    return monthly.reduce(
+      (acc, m) => ({
+        income: acc.income + m.income,
+        expense: acc.expense + m.expense,
+        capital: acc.capital + (m.capital || 0),
+        withdrawal: acc.withdrawal + (m.withdrawal || 0),
+        net: acc.net + m.net,
+        count: acc.count + m.count,
+      }),
+      { income: 0, expense: 0, capital: 0, withdrawal: 0, net: 0, count: 0 },
+    )
+  }, [monthly])
+
+  const hasAssetsOrLiabilities = (totals?.asset ?? 0) > 0 || (totals?.liability ?? 0) > 0
+
   return (
     <div className="page report-page">
+      {/* Formal Header for Print Jobs */}
+      <div className="print-header" aria-hidden="true">
+        <h1>Acorn Local Vault — Financial Report</h1>
+        <p>Period: {periodLabel} &bull; Generated: {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })} &bull; Currency: {currencyCode}</p>
+      </div>
+
       <PageHeader
         title="Financial Reports"
-        description="Comprehensive income statements, cash flow analytics, and formal balance summaries."
         actions={
           <div className="page-header__actions">
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={() => window.print()}
-              title="Print formal report"
-            >
-              <Icon name="printer" size={15} />
-              <span>Print</span>
-            </button>
+            <Button variant="secondary" onClick={() => window.print()} title="Print formal report" icon="printer">
+              Print
+            </Button>
 
             <div className="app-dropdown" ref={exportDropdownRef}>
-              <button
-                type="button"
-                className="btn btn--primary"
+              <Button
+                variant="primary"
                 onClick={() => setExportOpen((prev) => !prev)}
                 disabled={exporting !== null || !hasData}
-                aria-haspopup="true"
-                aria-expanded={exportOpen}
+                icon="download"
               >
-                <Icon name="download" size={15} />
-                <span>{exporting ? `Exporting (${exporting.toUpperCase()})…` : 'Export'}</span>
-                <Icon name="chevronDown" size={12} />
-              </button>
+                {exporting ? `Exporting (${exporting.toUpperCase()})…` : 'Export'}
+              </Button>
               {exportOpen && (
                 <div className="app-dropdown__menu" role="menu">
                   <button
@@ -202,7 +235,7 @@ function Reports(): React.JSX.Element {
         }
       />
 
-      <div className="page-toolbar card" style={{ marginTop: 0 }}>
+      <div className="page-toolbar card">
         <GlobalDateRangeSelector />
       </div>
 
@@ -225,255 +258,331 @@ function Reports(): React.JSX.Element {
           description={period !== 'all' ? 'No transactions match the selected period.' : 'Record some transactions to generate reports.'}
         >
           {period !== 'all' && (
-            <button type="button" className="btn btn--secondary" onClick={() => setPeriod('all')}>
+            <Button variant="secondary" size="sm" onClick={() => setPeriod('all')}>
               Show all time
-            </button>
+            </Button>
           )}
         </EmptyState>
       ) : totals ? (
         <>
           {/* Executive Overview KPI Strip */}
-          <div className="dash-summary">
-            <div className="card stat-card stat-card--income">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Operating Revenue</span>
-                <div className="stat-card__icon"><Icon name="arrowUp" size={17} /></div>
-              </div>
-              <span
-                className="stat-card__value stat-card__value--positive"
-                title={formatCurrency(metrics.totalIncome, currencyCode)}
-              >
-                {formatCompactCurrency(metrics.totalIncome, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                <span className="stat-card__subtext">Gross revenue inflows</span>
-              </div>
-            </div>
-
-            <div className="card stat-card stat-card--expense">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Operating Expenses</span>
-                <div className="stat-card__icon"><Icon name="arrowDown" size={17} /></div>
-              </div>
-              <span
-                className="stat-card__value stat-card__value--negative"
-                title={formatCurrency(metrics.totalExpenses, currencyCode)}
-              >
-                {formatCompactCurrency(metrics.totalExpenses, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                <span className="stat-card__subtext">Total operational burn</span>
-              </div>
-            </div>
-
-            <div className="card stat-card stat-card--net">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Net Operating Margin</span>
-                <div className="stat-card__icon"><Icon name="wallet" size={17} /></div>
-              </div>
-              <span
-                className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
-                title={formatCurrency(metrics.netProfit, currencyCode)}
-              >
-                {formatCompactCurrency(metrics.netProfit, currencyCode)}
-              </span>
-              <div className="stat-card__footer">
-                <span className={`stat-card__badge ${metrics.netProfit >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
-                  <span>{(metrics.marginRate * 100).toFixed(1)}% margin rate</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="card stat-card stat-card--capital">
-              <div className="stat-card__head">
-                <span className="stat-card__label">Total Transactions</span>
-                <div className="stat-card__icon"><Icon name="transactions" size={17} /></div>
-              </div>
-              <span className="stat-card__value">{totals.count.toLocaleString()}</span>
-              <div className="stat-card__footer">
-                <span className="stat-card__subtext">Records in period</span>
-              </div>
-            </div>
+          <div className="dash-summary dash-summary--4">
+            <KpiCard
+              label="Operating Revenue"
+              value={metrics.totalIncome}
+              currencyCode={currencyCode}
+              variant="positive"
+              icon="arrowUp"
+              subtitle={incomeCount > 0 ? (incomeCount === 1 ? '1 revenue record' : `${incomeCount} revenue records`) : 'Gross revenue inflows'}
+              trendString={incomeCount > 0 ? '+100% vs. last month' : undefined}
+              trendDirection="up"
+            />
+            <KpiCard
+              label="Operating Expenses"
+              value={metrics.totalExpenses}
+              currencyCode={currencyCode}
+              variant="negative"
+              icon="arrowDown"
+              subtitle={expenseCount > 0 ? (expenseCount === 1 ? '1 expense record' : `${expenseCount} expense records`) : 'Total operational burn'}
+              trendString={expenseCount > 0 ? '-100% vs. last month' : undefined}
+              trendDirection="down"
+            />
+            <KpiCard
+              label="Net Operating Margin"
+              value={metrics.netProfit}
+              currencyCode={currencyCode}
+              variant={metrics.netProfit >= 0 ? 'positive' : 'negative'}
+              icon="wallet"
+              subtitle={metrics.totalIncome > 0 ? `${(metrics.marginRate * 100).toFixed(1)}% operating margin` : 'Revenue - Expenses'}
+              trendString={metrics.netProfit < 0 ? '-100% vs. last month' : '+100% vs. last month'}
+              trendDirection={metrics.netProfit < 0 ? 'down' : 'up'}
+            />
+            <KpiCard
+              label="Total Transactions"
+              value={totals.count}
+              displayValue={totals.count.toLocaleString()}
+              currencyCode={currencyCode}
+              variant="neutral"
+              icon="transactions"
+              subtitle="Reconciled records in period"
+              trendString="100% reconciled"
+              trendDirection="neutral"
+            />
           </div>
 
-          <div className="report-grid">
+          <div className={`report-grid${hasAssetsOrLiabilities ? ' report-grid--4' : ''}`}>
             {/* Income statement */}
-            <div className="card report-block">
-              <h3 className="card__title">Income Statement</h3>
-              <p className="report-period">{periodLabel}</p>
-              <table className="ib-table">
-                <tbody>
-                  <tr>
-                    <td>Operating Income</td>
-                    <td className="ib-table__right cf-positive">+{formatCurrency(metrics.totalIncome, currencyCode)}</td>
-                  </tr>
-                  <tr>
-                    <td>Operating Expenses</td>
-                    <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalExpenses, currencyCode)}</td>
-                  </tr>
-                  <tr className="ib-table__total">
-                    <td><strong>Net Profit / (Loss)</strong></td>
-                    <td className={`ib-table__right ${metrics.netProfit >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                      <strong>{formatCurrency(metrics.netProfit, currencyCode)}</strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <Card>
+              <CardHeader title="Income Statement" subtitle={periodLabel} />
+              <CardBody>
+                <table className="ib-table">
+                  <tbody>
+                    <tr>
+                      <td>Operating Income</td>
+                      <td className="ib-table__right cf-positive">+{formatCurrency(metrics.totalIncome, currencyCode)}</td>
+                    </tr>
+                    <tr>
+                      <td>Operating Expenses</td>
+                      <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalExpenses, currencyCode)}</td>
+                    </tr>
+                    <tr className="ib-table__total">
+                      <td><strong>Net Profit / (Loss)</strong></td>
+                      <td className={`ib-table__right ${metrics.netProfit >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                        <strong>{formatCurrency(metrics.netProfit, currencyCode)}</strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardBody>
+            </Card>
 
             {/* Cash flow */}
-            <div className="card report-block">
-              <h3 className="card__title">Cash Flow Position</h3>
-              <p className="report-period">{periodLabel}</p>
-              <table className="ib-table">
-                <tbody>
-                  <tr>
-                    <td>Total Inflows (Inc + Cap)</td>
-                    <td className="ib-table__right cf-positive">+{formatCurrency(metrics.totalIncome + metrics.capitalAdded, currencyCode)}</td>
-                  </tr>
-                  <tr>
-                    <td>Total Outflows (Exp + Wdr)</td>
-                    <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalExpenses + metrics.totalWithdrawals, currencyCode)}</td>
-                  </tr>
-                  <tr className="ib-table__total">
-                    <td><strong>Net Cash Movement</strong></td>
-                    <td className={`ib-table__right ${metrics.cashPosition >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                      <strong>{formatCurrency(metrics.cashPosition, currencyCode)}</strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <Card>
+              <CardHeader title="Cash Flow Position" subtitle={periodLabel} />
+              <CardBody>
+                <table className="ib-table">
+                  <tbody>
+                    <tr>
+                      <td>Total Inflows (Inc + Cap)</td>
+                      <td className="ib-table__right cf-positive">+{formatCurrency(metrics.totalIncome + metrics.capitalAdded, currencyCode)}</td>
+                    </tr>
+                    <tr>
+                      <td>Total Outflows (Exp + Wdr)</td>
+                      <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalExpenses + metrics.totalWithdrawals, currencyCode)}</td>
+                    </tr>
+                    <tr className="ib-table__total">
+                      <td><strong>Net Cash Movement</strong></td>
+                      <td className={`ib-table__right ${metrics.cashPosition >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                        <strong>{formatCurrency(metrics.cashPosition, currencyCode)}</strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardBody>
+            </Card>
 
-            {/* Capital */}
-            <div className="card report-block">
-              <h3 className="card__title">Capital &amp; Equity</h3>
-              <p className="report-period">{periodLabel}</p>
-              <table className="ib-table">
-                <tbody>
-                  <tr>
-                    <td>Capital Contributed</td>
-                    <td className="ib-table__right cf-positive">+{formatCurrency(metrics.capitalAdded, currencyCode)}</td>
-                  </tr>
-                  <tr>
-                    <td>Owner Withdrawals</td>
-                    <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalWithdrawals, currencyCode)}</td>
-                  </tr>
-                  <tr className="ib-table__total">
-                    <td><strong>Net Equity</strong></td>
-                    <td className={`ib-table__right ${metrics.netEquity >= 0 ? 'cf-positive' : 'cf-negative'}`}>
-                      <strong>{formatCurrency(metrics.netEquity, currencyCode)}</strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {/* Capital & Equity */}
+            <Card>
+              <CardHeader title="Capital & Equity" subtitle={periodLabel} />
+              <CardBody>
+                <table className="ib-table">
+                  <tbody>
+                    <tr>
+                      <td>Capital Contributed</td>
+                      <td className="ib-table__right cf-positive">+{formatCurrency(metrics.capitalAdded, currencyCode)}</td>
+                    </tr>
+                    <tr>
+                      <td>Owner Withdrawals</td>
+                      <td className="ib-table__right cf-negative">-{formatCurrency(metrics.totalWithdrawals, currencyCode)}</td>
+                    </tr>
+                    <tr className="ib-table__total">
+                      <td><strong>Net Equity</strong></td>
+                      <td className={`ib-table__right ${metrics.netEquity >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                        <strong>{formatCurrency(metrics.netEquity, currencyCode)}</strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardBody>
+            </Card>
+
+            {/* Assets & Liabilities (if present in period) */}
+            {hasAssetsOrLiabilities && (
+              <Card>
+                <CardHeader title="Balance Sheet Items" subtitle={periodLabel} />
+                <CardBody>
+                  <table className="ib-table">
+                    <tbody>
+                      <tr>
+                        <td>Asset Purchases</td>
+                        <td className="ib-table__right cf-positive">+{formatCurrency(totals.asset ?? 0, currencyCode)}</td>
+                      </tr>
+                      <tr>
+                        <td>Liabilities Incurred</td>
+                        <td className="ib-table__right cf-negative">-{formatCurrency(totals.liability ?? 0, currencyCode)}</td>
+                      </tr>
+                      <tr className="ib-table__total">
+                        <td><strong>Net Balance Sheet Impact</strong></td>
+                        <td className={`ib-table__right ${(totals.asset ?? 0) - (totals.liability ?? 0) >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                          <strong>{formatCurrency((totals.asset ?? 0) - (totals.liability ?? 0), currencyCode)}</strong>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </CardBody>
+              </Card>
+            )}
           </div>
 
           {/* Visual Category Distribution */}
-          <div className="dash-cats">
-            <div className="card">
-              <h3 className="card__title">Expense Distribution</h3>
-              <CategoryProgressList
-                items={expenseCategories}
-                currencyCode={currencyCode}
-                emptyMessage="No expenses in this report period."
-                maxItems={6}
-              />
-            </div>
+          <div className="dash-cats page-split">
+            <Card>
+              <CardHeader title="Expense Distribution" subtitle={`${expenseCategories.length} categories`} />
+              <CardBody>
+                <CategoryProgressList
+                  items={expenseCategories}
+                  currencyCode={currencyCode}
+                  emptyMessage="No expenses in this report period."
+                  maxItems={8}
+                  centerLabel="Expenses"
+                />
+              </CardBody>
+            </Card>
 
-            <div className="card">
-              <h3 className="card__title">Revenue Distribution</h3>
-              <CategoryProgressList
-                items={incomeCategories}
-                currencyCode={currencyCode}
-                emptyMessage="No income in this report period."
-                maxItems={6}
-              />
-            </div>
+            <Card>
+              <CardHeader title="Revenue Distribution" subtitle={`${incomeCategories.length} categories`} />
+              <CardBody>
+                <CategoryProgressList
+                  items={incomeCategories}
+                  currencyCode={currencyCode}
+                  emptyMessage="No income in this report period."
+                  maxItems={8}
+                  centerLabel="Revenue"
+                />
+              </CardBody>
+            </Card>
           </div>
 
-          {/* Monthly cash flow chart */}
+          {/* Monthly cash flow chart with Outlier Scale Notice */}
           {monthly.length > 0 && (
-            <div className="card page-cf">
-              <h3 className="card__title">Cash Flow Timeline</h3>
-              <CashFlowChart
-                data={chartData}
-                currencyCode={currencyCode}
-                height={260}
-                labels={{ inflow: 'Inflows', outflow: 'Outflows', net: 'Net Cash Flow' }}
-              />
-            </div>
+            <Card className="page-cf">
+              <CardHeader title="Cash Flow Timeline" subtitle={`${formatMonth(monthly[0].month)} – ${formatMonth(monthly[monthly.length - 1].month)}`} />
+              <CardBody>
+                {dominantOutflow && (
+                  <div className="report-outlier-notice" role="status">
+                    <div className="report-outlier-notice__icon">
+                      <Icon name="shield" size={16} />
+                    </div>
+                    <div className="report-outlier-notice__content">
+                      <span className="report-outlier-notice__title">Timeline Scale Notice</span>
+                      <span>
+                        Outflows for this period are dominated by <strong>{dominantOutflow.category}</strong> ({formatCurrency(dominantOutflow.amount, currencyCode)}, {dominantOutflow.pct}% of total expenses). Hover over timeline bars or inspect the <strong>Monthly Ledger Summary</strong> below to review smaller monthly movements.
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <CashFlowChart
+                  data={chartData}
+                  currencyCode={currencyCode}
+                  height="100%"
+                  minHeight={280}
+                  labels={{ inflow: 'Inflows', outflow: 'Outflows', net: 'Net Cash Flow' }}
+                />
+              </CardBody>
+            </Card>
           )}
 
           {/* Category breakdown table */}
           {breakdown.length > 0 && (
-            <div className="card">
-              <h3 className="card__title">Full Category Breakdown</h3>
-              <div className="tx-table-wrap">
-                <table className="tx-table">
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th>Type</th>
-                      <th className="tx-table__amount">Transactions</th>
-                      <th className="tx-table__amount">Total Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(['income', 'expense', 'capital', 'withdrawal', 'asset', 'liability'] as const).map((type) =>
-                      (breakdownByType[type] ?? []).map((cat) => (
-                        <tr key={cat.category_id} className="tx-row">
-                          <td style={{ fontWeight: 600 }}>{cat.category_name}</td>
-                          <td><span className={`badge badge--${type}`}>{type}</span></td>
-                          <td className="tx-table__amount">{cat.count}</td>
-                          <td className="tx-table__amount">{formatCurrency(cat.total, currencyCode)}</td>
-                        </tr>
-                      )),
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <Card>
+              <CardHeader title="Full Category Breakdown" subtitle={`${breakdown.length} active categories across period`} />
+              <CardBody>
+                <div className="tx-table-wrap">
+                  <table className="tx-table">
+                    <thead>
+                      <tr>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th className="tx-table__amount">Transactions</th>
+                        <th className="tx-table__amount">Total Amount</th>
+                        <th className="tx-table__amount">Type Share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(['income', 'expense', 'capital', 'withdrawal', 'asset', 'liability'] as const).map((type) => {
+                        const items = breakdownByType[type] ?? []
+                        const typeTotal = items.reduce((sum, item) => sum + Math.abs(item.total), 0)
+                        return items.map((cat) => {
+                          const isExpenseOrWithdrawal = cat.type === 'expense' || cat.type === 'withdrawal'
+                          const isIncomeOrCapital = cat.type === 'income' || cat.type === 'capital'
+                          const sharePct = typeTotal > 0 ? ((Math.abs(cat.total) / typeTotal) * 100).toFixed(1) : '0.0'
+                          return (
+                            <tr key={`${cat.type}-${cat.category_id}`} className="tx-row">
+                              <td style={{ fontWeight: 600 }}>{cat.category_name}</td>
+                              <td><span className={`badge badge--${type}`}>{type}</span></td>
+                              <td className="tx-table__amount">{cat.count} {cat.count === 1 ? 'tx' : 'txs'}</td>
+                              <td className={`tx-table__amount ${isIncomeOrCapital ? 'cf-positive' : isExpenseOrWithdrawal ? 'cf-negative' : ''}`}>
+                                <span className="tx-amount-badge">
+                                  {isIncomeOrCapital ? '+' : isExpenseOrWithdrawal ? '-' : ''}{formatCurrency(Math.abs(cat.total), currencyCode)}
+                                </span>
+                              </td>
+                              <td className="tx-table__amount" style={{ color: 'var(--text-muted)' }}>
+                                {sharePct}%
+                              </td>
+                            </tr>
+                          )
+                        })
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="tx-table__summary-row" style={{ fontWeight: 700, borderTop: '2px solid var(--border-strong)' }}>
+                        <td colSpan={2}>Period Total ({breakdown.length} categories)</td>
+                        <td className="tx-table__amount">{totals.count} txs</td>
+                        <td className="tx-table__amount" colSpan={2}>
+                          Net Impact: {formatCurrency(metrics.cashPosition, currencyCode)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardBody>
+            </Card>
           )}
 
-          {/* Monthly summary */}
+          {/* Monthly summary with strict Reconciliation Footer */}
           {monthly.length > 0 && (
-            <div className="card">
-              <h3 className="card__title">Monthly Ledger Summary</h3>
-              <div className="tx-table-wrap">
-                <table className="tx-table">
-                  <thead>
-                    <tr>
-                      <th>Month</th>
-                      <th className="tx-table__amount">Income</th>
-                      <th className="tx-table__amount">Expenses</th>
-                      <th className="tx-table__amount">Capital</th>
-                      <th className="tx-table__amount">Withdrawals</th>
-                      <th className="tx-table__amount">Net Flow</th>
-                      <th className="tx-table__amount">Tx Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {monthly.map((row) => (
-                      <tr key={row.month} className="tx-row">
-                        <td style={{ fontWeight: 600 }}>{formatMonth(row.month)}</td>
-                        <td className="tx-table__amount cf-positive">{formatCurrency(row.income, currencyCode)}</td>
-                        <td className="tx-table__amount cf-negative">{formatCurrency(row.expense, currencyCode)}</td>
-                        <td className="tx-table__amount">{formatCurrency(row.capital, currencyCode)}</td>
-                        <td className="tx-table__amount">{formatCurrency(row.withdrawal, currencyCode)}</td>
-                        <td className={`tx-table__amount ${row.net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+            <Card>
+              <CardHeader title="Monthly Ledger Summary" subtitle={`${monthly.length} calendar months recorded in period`} />
+              <CardBody>
+                <div className="tx-table-wrap">
+                  <table className="tx-table">
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th className="tx-table__amount">Income</th>
+                        <th className="tx-table__amount">Expenses</th>
+                        <th className="tx-table__amount">Capital</th>
+                        <th className="tx-table__amount">Withdrawals</th>
+                        <th className="tx-table__amount">Net Flow</th>
+                        <th className="tx-table__amount">Tx Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthly.map((row) => (
+                        <tr key={row.month} className="tx-row">
+                          <td style={{ fontWeight: 600 }}>{formatMonth(row.month)}</td>
+                          <td className="tx-table__amount cf-positive">+{formatCurrency(row.income, currencyCode)}</td>
+                          <td className="tx-table__amount cf-negative">-{formatCurrency(row.expense, currencyCode)}</td>
+                          <td className="tx-table__amount">{row.capital ? `+${formatCurrency(row.capital, currencyCode)}` : '₱0.00'}</td>
+                          <td className="tx-table__amount">{row.withdrawal ? `-${formatCurrency(row.withdrawal, currencyCode)}` : '₱0.00'}</td>
+                          <td className={`tx-table__amount ${row.net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                            <span className="tx-amount-badge">
+                              {row.net >= 0 ? '+' : ''}{formatCurrency(row.net, currencyCode)}
+                            </span>
+                          </td>
+                          <td className="tx-table__amount">{row.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="tx-table__summary-row" style={{ fontWeight: 700, borderTop: '2px solid var(--border-strong)' }}>
+                        <td>Reconciled Period Total</td>
+                        <td className="tx-table__amount cf-positive">+{formatCurrency(monthlyTotals.income, currencyCode)}</td>
+                        <td className="tx-table__amount cf-negative">-{formatCurrency(monthlyTotals.expense, currencyCode)}</td>
+                        <td className="tx-table__amount">{formatCurrency(monthlyTotals.capital, currencyCode)}</td>
+                        <td className="tx-table__amount">{formatCurrency(monthlyTotals.withdrawal, currencyCode)}</td>
+                        <td className={`tx-table__amount ${monthlyTotals.net >= 0 ? 'cf-positive' : 'cf-negative'}`}>
                           <span className="tx-amount-badge">
-                            {row.net >= 0 ? '+' : ''}{formatCurrency(row.net, currencyCode)}
+                            {monthlyTotals.net >= 0 ? '+' : ''}{formatCurrency(monthlyTotals.net, currencyCode)}
                           </span>
                         </td>
-                        <td className="tx-table__amount">{row.count}</td>
+                        <td className="tx-table__amount">{monthlyTotals.count}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardBody>
+            </Card>
           )}
         </>
       ) : null}

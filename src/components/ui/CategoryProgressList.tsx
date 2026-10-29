@@ -11,6 +11,7 @@ interface CategoryProgressListProps {
   accentColor?: 'accent' | 'success' | 'danger' | 'warning'
   maxItems?: number
   centerLabel?: string
+  fallbackCategories?: string[]
 }
 
 interface DonutSlice {
@@ -28,6 +29,7 @@ export default function CategoryProgressList({
   emptyMessage = 'No category data recorded yet.',
   maxItems = 6,
   centerLabel = 'Total in period',
+  fallbackCategories,
 }: CategoryProgressListProps): React.JSX.Element {
   const totalSum = useMemo(() => {
     return items.reduce((acc, curr) => acc + Math.abs(curr.total), 0)
@@ -35,12 +37,32 @@ export default function CategoryProgressList({
 
   const slices = useMemo<DonutSlice[]>(() => {
     if (items.length === 0 || totalSum <= 0) {
+      if (fallbackCategories && fallbackCategories.length > 0) {
+        return fallbackCategories.map((name, idx) => ({
+          id: `fallback-${idx}`,
+          name,
+          value: 0,
+          percent: 0,
+          count: 0,
+          color: getCategoryColor(name),
+        }))
+      }
       return []
     }
 
     // Hide zero slices (e.g. Equipment 0% which renders an orphan stub)
     const positive = items.filter((item) => Math.abs(item.total) > 0)
     if (positive.length === 0) {
+      if (fallbackCategories && fallbackCategories.length > 0) {
+        return fallbackCategories.map((name, idx) => ({
+          id: `fallback-${idx}`,
+          name,
+          value: 0,
+          percent: 0,
+          count: 0,
+          color: getCategoryColor(name),
+        }))
+      }
       return []
     }
 
@@ -73,13 +95,15 @@ export default function CategoryProgressList({
 
     const result: DonutSlice[] = top.map((item) => {
       const value = Math.abs(item.total)
+      const rawName = item.category_name?.trim()
+      const name = rawName || 'Uncategorized'
       return {
-        id: item.category_id,
-        name: item.category_name,
+        id: item.category_id ?? `cat-${name}`,
+        name,
         value,
         percent: (value / totalSum) * 100,
         count: item.count,
-        color: getCategoryColor(item.category_name),
+        color: getCategoryColor(name),
       }
     })
 
@@ -95,36 +119,42 @@ export default function CategoryProgressList({
     }
 
     return result
-  }, [items, maxItems, totalSum])
+  }, [items, maxItems, totalSum, fallbackCategories])
 
   if (items.length === 0 || slices.length === 0) {
-    return <p className="cat-progress__empty">{emptyMessage}</p>
+    if (!fallbackCategories || fallbackCategories.length === 0) {
+      return <p className="cat-progress__empty">{emptyMessage}</p>
+    }
   }
+
+  const pieData = totalSum > 0
+    ? slices.filter(s => s.value > 0)
+    : [{ id: 'empty-ring', name: 'None', value: 1, color: 'var(--border-strong, #22d3ee)' }]
 
   return (
     <div className="cat-donut">
       <div className="cat-donut__chart-wrap">
-        <ResponsiveContainer width="100%" height={210}>
+        <ResponsiveContainer width="100%" height={145}>
           <PieChart>
             <Pie
-              data={slices}
+              data={pieData}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={62}
-              outerRadius={90}
-              paddingAngle={slices.length > 1 ? 3 : 0}
-              cornerRadius={6}
+              innerRadius={46}
+              outerRadius={66}
+              paddingAngle={pieData.length > 1 ? 3 : 0}
+              cornerRadius={5}
               stroke="none"
             >
-              {slices.map((slice) => (
+              {pieData.map((slice) => (
                 <Cell key={slice.id} fill={slice.color} />
               ))}
             </Pie>
             <Tooltip
               formatter={(value: unknown, name: unknown) => [
-                formatCurrency(Number(value) || 0, currencyCode),
+                formatCurrency(totalSum > 0 ? (Number(value) || 0) : 0, currencyCode),
                 String(name || 'Amount'),
               ]}
               contentStyle={{

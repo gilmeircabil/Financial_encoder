@@ -188,7 +188,6 @@ function Documents(): React.JSX.Element {
     <div className="page documents-page">
       <PageHeader
         title="Documents &amp; OCR"
-        description="Extract transactions automatically from scanned receipts, invoices, bills, and PDF bank statements."
         actions={
           !document ? (
             <button type="button" className="btn btn--primary" onClick={pickDocument} disabled={picking}>
@@ -251,7 +250,7 @@ function Documents(): React.JSX.Element {
             {picking ? 'Reading & Extracting Document…' : 'Upload Receipt or Invoice'}
           </h3>
           <p className="dropzone__desc">
-            Click anywhere or drop your file here to scan receipts, invoices, or bank statements with intelligent OCR.
+            Click anywhere or drop your file here to scan receipts, invoices, or bank statements with local OCR. Extracted records are never auto-saved: you review and edit every line before saving.
           </p>
           <div className="dropzone__types">
             <span className="dropzone__type-pill">PDF</span>

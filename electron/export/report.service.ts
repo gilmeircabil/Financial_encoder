@@ -85,37 +85,41 @@ export function buildCsvReport(data: ReportData): string {
   }
 
   push(data.title)
-  push(`Period,${data.periodLabel}`)
-  push(`Generated,${data.generatedAt}`)
+  push('Period', data.periodLabel)
+  push('Generated', data.generatedAt)
+  push('Currency', data.currency)
   push('')
 
   push('SUMMARY')
-  push(`Income,${data.totals.income}`)
-  push(`Expense,${data.totals.expense}`)
-  push(`Capital,${data.totals.capital}`)
-  push(`Withdrawal,${data.totals.withdrawal}`)
-  push(`Net Profit,${data.totals.income - data.totals.expense}`)
-  push(`Cash Position,${data.totals.income + data.totals.capital - data.totals.expense - data.totals.withdrawal}`)
-  push(`Net Equity,${data.totals.capital - data.totals.withdrawal}`)
-  push(`Transaction count,${data.totals.count}`)
+  push('Metric', 'Amount')
+  push('Operating Income', data.totals.income)
+  push('Operating Expenses', data.totals.expense)
+  push('Capital Added', data.totals.capital)
+  push('Owner Withdrawals', data.totals.withdrawal)
+  push('Assets', data.totals.asset)
+  push('Liabilities', data.totals.liability)
+  push('Net Profit', data.totals.income - data.totals.expense)
+  push('Cash Position', data.totals.income + data.totals.capital - data.totals.expense - data.totals.withdrawal)
+  push('Net Equity', data.totals.capital - data.totals.withdrawal)
+  push('Transaction Count', data.totals.count)
   push('')
 
   push('MONTHLY SUMMARY')
-  push('Month,Income,Expense,Capital,Withdrawal,Net,Count')
+  push('Month', 'Income', 'Expense', 'Capital', 'Withdrawal', 'Net', 'Count')
   for (const row of data.monthly) {
     push(row.month, row.income, row.expense, row.capital, row.withdrawal, row.net, row.count)
   }
   push('')
 
   push('CATEGORY BREAKDOWN')
-  push('Category,Type,Count,Total')
+  push('Category', 'Type', 'Count', 'Total')
   for (const cat of data.categories) {
     push(cat.category_name, cat.type, cat.count, cat.total)
   }
   push('')
 
   push('TRANSACTIONS')
-  push('Date,Description,Category,Type,Amount,Notes')
+  push('Date', 'Description', 'Category', 'Type', 'Amount', 'Notes')
   for (const tx of data.transactions) {
     push(tx.date, tx.description, tx.category_name, tx.type, tx.amount, tx.notes ?? '')
   }
@@ -238,12 +242,36 @@ export async function buildXlsxReport(data: ReportData): Promise<Buffer> {
     ['Expense', t.expense],
     ['Capital', t.capital],
     ['Withdrawal', t.withdrawal],
+    ['Assets', t.asset],
+    ['Liabilities', t.liability],
     ['Net Profit', t.income - t.expense],
     ['Cash Position', t.income + t.capital - t.expense - t.withdrawal],
     ['Net Equity', t.capital - t.withdrawal],
     ['Transaction count', t.count],
   ]
   summaryRows.forEach((row) => summary.addRow(row))
+
+  const monthlySheet = workbook.addWorksheet('Monthly Summary')
+  monthlySheet.columns = [
+    { header: 'Month', key: 'month', width: 14 },
+    { header: 'Income', key: 'income', width: 16 },
+    { header: 'Expense', key: 'expense', width: 16 },
+    { header: 'Capital', key: 'capital', width: 16 },
+    { header: 'Withdrawal', key: 'withdrawal', width: 16 },
+    { header: 'Net', key: 'net', width: 16 },
+    { header: 'Count', key: 'count', width: 10 },
+  ]
+  for (const row of data.monthly) {
+    monthlySheet.addRow({
+      month: row.month,
+      income: row.income,
+      expense: row.expense,
+      capital: row.capital,
+      withdrawal: row.withdrawal,
+      net: row.net,
+      count: row.count,
+    })
+  }
 
   const categories = workbook.addWorksheet('Category Breakdown')
   categories.columns = [

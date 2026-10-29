@@ -1,20 +1,27 @@
-import type { ReactNode } from 'react'
+import { ReactNode } from 'react'
 
-interface PageHeaderProps {
+export interface PageHeaderProps {
+  /** Required page title */
   title: string
+  /** Optional descriptive text */
   description?: string
+  /** Optional action elements (buttons, links) on the right */
   actions?: ReactNode
 }
 
-function PageHeader({ title, description, actions }: PageHeaderProps): React.JSX.Element {
+function PageHeader({
+  title,
+  description,
+  actions,
+}: PageHeaderProps): React.JSX.Element {
   return (
-    <div className="page-header">
-      <div className="page-header__text">
+    <header className="page-header">
+      <div className="page-header__content">
         <h1 className="page-header__title">{title}</h1>
-        {description ? <p className="page-header__description">{description}</p> : null}
+        {description && <p className="page-header__description">{description}</p>}
       </div>
-      {actions ? <div className="page-header__actions">{actions}</div> : null}
-    </div>
+      {actions && <div className="page-header__actions">{actions}</div>}
+    </header>
   )
 }
 

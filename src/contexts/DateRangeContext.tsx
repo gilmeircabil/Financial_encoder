@@ -29,7 +29,7 @@ export function DateRangeProvider({ children }: { children: ReactNode }): React.
   const { settings } = useSettings()
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
 
-  const [period, setPeriod] = useState<PeriodKey>('all')
+  const [period, setPeriod] = useState<PeriodKey>('this-year')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 

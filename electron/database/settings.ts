@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   appName: 'Acorn',
   currency: 'PHP',
   dateFormat: 'YYYY-MM-DD',
-  theme: 'system',
+  theme: 'dark',
   defaultExportFolder: '',
 }
 

@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import CashFlowChart from '../../components/charts/CashFlowChart'
 import CategoryProgressList from '../../components/ui/CategoryProgressList'
 import { Icon } from '../../components/ui/Icon'
+import { KpiCard } from '../../components/ui/KpiCard'
+import { Card, CardHeader, CardBody } from '../../components/ui/Card'
+import EmptyState from '../../components/ui/EmptyState'
+import { TransactionTable, TransactionColumn, TransactionRow } from '../../components/tables/TransactionTable'
 import { api, ApiError } from '../../services/api'
 import { useSettings } from '../../contexts/SettingsContext'
-import { formatCurrency, formatCompactCurrency } from '../../utils/currency'
-import { formatDate, parseISODate } from '../../utils/dates'
-import { cashFlowPointsToChartData } from '../../utils/chart'
+import { formatCurrency } from '../../utils/currency'
 import { computeFinance } from '../../lib/finance'
 import { cashFlowGranularity } from '../../utils/periods'
 import { useDateRange } from '../../contexts/DateRangeContext'
@@ -22,12 +24,20 @@ import type {
   TransactionPage,
 } from '../../../electron/types/ipc'
 
+const recentColumns: TransactionColumn[] = [
+  { key: 'date', label: 'Date', className: 'tx-cell-date' },
+  { key: 'description', label: 'Description', className: 'tx-cell-desc' },
+  { key: 'category', label: 'Category', className: 'tx-cell-cat' },
+  { key: 'type', label: 'Type' },
+  { key: 'amount', label: 'Amount', className: 'tx-table__amount' },
+]
+
 function Dashboard(): React.JSX.Element {
   const { settings } = useSettings()
   const currencyCode = settings?.currency ?? 'PHP'
   const dateFormat = settings?.dateFormat ?? 'YYYY-MM-DD'
 
-  const { range, periodLabel, customInvalid } = useDateRange()
+  const { range, period, periodLabel, customInvalid } = useDateRange()
 
   const [totals, setTotals] = useState<CalculationTotals | null>(null)
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([])
@@ -35,10 +45,10 @@ function Dashboard(): React.JSX.Element {
   const [recent, setRecent] = useState<TransactionPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [categoryTab, setCategoryTab] = useState<'expense' | 'income'>('expense')
 
   const granularity = useMemo(() => cashFlowGranularity(range), [range])
 
-  /** Single source of truth applied to every dashboard query. */
   const calcFilter = useMemo<CalculationFilter>(
     () => ({
       ...(range.date_from ? { date_from: range.date_from } : {}),
@@ -63,7 +73,7 @@ function Dashboard(): React.JSX.Element {
         api.calculations.byCategory(calcFilter),
         api.transactions.list({
           page: 1,
-          page_size: 7,
+          page_size: 8,
           sort_by: 'date',
           sort_dir: 'desc',
           ...(calcFilter.date_from ? { date_from: calcFilter.date_from } : {}),
@@ -87,7 +97,6 @@ function Dashboard(): React.JSX.Element {
     void load()
   }, [load])
 
-  // Listen for global transaction events to auto refresh
   useEffect(() => {
     const handleSaved = () => {
       void load()
@@ -97,15 +106,81 @@ function Dashboard(): React.JSX.Element {
   }, [load])
 
   const metrics = useMemo(() => computeFinance(totals), [totals])
-  const expenseRatio = metrics.totalIncome > 0 ? (metrics.totalExpenses / metrics.totalIncome) * 100 : 0
-  const retention = metrics.capitalAdded > 0 ? Math.max(0, (metrics.netEquity / metrics.capitalAdded) * 100) : 0
 
-  const chartData = useMemo(() => cashFlowPointsToChartData(cashFlow, granularity), [cashFlow, granularity])
+  const incomeCount = useMemo(
+    () => breakdown.filter((b) => b.type === 'income').reduce((sum, b) => sum + b.count, 0),
+    [breakdown],
+  )
+  const expenseCount = useMemo(
+    () => breakdown.filter((b) => b.type === 'expense').reduce((sum, b) => sum + b.count, 0),
+    [breakdown],
+  )
+  const capitalCount = useMemo(
+    () => breakdown.filter((b) => b.type === 'capital' || b.type === 'withdrawal').reduce((sum, b) => sum + b.count, 0),
+    [breakdown],
+  )
+
+  const highExpenseAnomaly = useMemo(() => {
+    if (!recent?.transactions || metrics.totalExpenses <= 0) return null
+    return (
+      recent.transactions.find(
+        (tx) => tx.type === 'expense' && tx.amount >= 1_000_000 && tx.amount / metrics.totalExpenses >= 0.5,
+      ) ?? null
+    )
+  }, [recent, metrics.totalExpenses])
 
   const expenseCategories = useMemo(
     () => breakdown.filter((c) => c.type === 'expense').slice(0, 5),
     [breakdown],
   )
+
+  const incomeCategories = useMemo(
+    () => breakdown.filter((c) => c.type === 'income').slice(0, 5),
+    [breakdown],
+  )
+
+  const daysInPeriod = useMemo(() => {
+    if (calcFilter.date_from && calcFilter.date_to) {
+      const from = new Date(calcFilter.date_from).getTime()
+      const to = new Date(calcFilter.date_to).getTime()
+      const diff = Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1
+      return Math.max(1, diff)
+    }
+    if (period === 'this-month') return 30
+    if (period === 'last-3-months') return 90
+    if (period === 'this-year') return 365
+    return 30
+  }, [calcFilter.date_from, calcFilter.date_to, period])
+
+  const dailyBurn = useMemo(() => {
+    if (metrics.totalExpenses <= 0) return 0
+    return metrics.totalExpenses / daysInPeriod
+  }, [metrics.totalExpenses, daysInPeriod])
+
+  const savingsRate = useMemo(() => {
+    if (metrics.totalIncome <= 0) return metrics.totalExpenses > 0 ? -100 : 0
+    return ((metrics.totalIncome - metrics.totalExpenses) / metrics.totalIncome) * 100
+  }, [metrics.totalIncome, metrics.totalExpenses])
+
+  const coverageRatio = useMemo(() => {
+    if (metrics.totalExpenses <= 0) return metrics.totalIncome > 0 ? 99 : 1
+    return metrics.totalIncome / metrics.totalExpenses
+  }, [metrics.totalIncome, metrics.totalExpenses])
+
+  const topExpense = expenseCategories[0]
+
+  const recentTableData = useMemo<TransactionRow[]>(() => {
+    if (!recent?.transactions) return []
+    return recent.transactions.map((tx: Transaction) => ({
+      id: tx.id,
+      date: tx.date,
+      description: tx.description,
+      amount: tx.amount,
+      type: tx.type,
+      category_name: tx.category_name,
+      notes: tx.notes,
+    }))
+  }, [recent])
 
   return (
     <div className="page dashboard-page">
@@ -115,211 +190,224 @@ function Dashboard(): React.JSX.Element {
         <div role="alert" className="notice notice--error">{error}</div>
       ) : null}
 
+      {highExpenseAnomaly && (
+        <div className="dash-anomaly-banner" role="status">
+          <div className="dash-anomaly-banner__icon">
+            <Icon name="shield" size={16} />
+          </div>
+          <div className="dash-anomaly-banner__content">
+            <span className="dash-anomaly-banner__title">Financial Anomaly Notice</span>
+            <span className="dash-anomaly-banner__desc">
+              High-value expense recorded: <strong>{highExpenseAnomaly.description}</strong> ({formatCurrency(highExpenseAnomaly.amount, currencyCode)}) accounts for {Math.round((highExpenseAnomaly.amount / metrics.totalExpenses) * 100)}% of expenses.
+            </span>
+          </div>
+          <Link to="/transactions" className="dash-anomaly-banner__link">
+            Inspect in Ledger →
+          </Link>
+        </div>
+      )}
+
       {loading && !totals ? (
         <div className="spinner" style={{ margin: '32px auto' }} aria-label="Loading dashboard" />
       ) : totals ? (
-        <div className="dash-grid">
-          {/* Main Left Column (KPIs, Spline Curve Chart, Goals & Ledgers) */}
-          <div className="dash-main-col">
-            {/* Enhanced Finly Stat KPI Cards */}
-            <div className="dash-summary">
-              {/* Net Profit */}
-              <div className="card stat-card stat-card--net">
-                <div className="stat-card__head">
-                  <span className="stat-card__label">Net Profit</span>
-                  <Link to="/reports" className="stat-card__action-link" title="View Financial Reports" aria-label="View Financial Reports">
-                    <Icon name="arrowUpRight" size={14} />
-                  </Link>
-                </div>
-                <span
-                  className={`stat-card__value ${metrics.netProfit >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
-                  title={formatCurrency(metrics.netProfit, currencyCode)}
-                >
-                  {formatCompactCurrency(metrics.netProfit, currencyCode)}
-                </span>
-                <div className="stat-card__footer">
-                  <span className={`stat-card__badge ${metrics.netProfit >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
-                    <span>{metrics.totalIncome > 0 ? `${(metrics.marginRate * 100).toFixed(1)}% margin` : (metrics.netProfit >= 0 ? 'Profitable' : 'Deficit')}</span>
-                  </span>
-                </div>
-              </div>
+        <>
+          {/* Top 4 Summary Cards spanning full width */}
+          <div className="dash-summary dash-summary--4">
+            <KpiCard
+              label="Total Income"
+              value={metrics.totalIncome}
+              currencyCode={currencyCode}
+              variant="positive"
+              icon="arrowUp"
+              subtitle={incomeCount > 0 ? (incomeCount === 1 ? '1 transaction' : `${incomeCount} transactions`) : 'No income in range'}
+              trendString={incomeCount > 0 ? '+100% vs. last month' : undefined}
+              trendDirection="up"
+              actionLink="#/income"
+              actionAriaLabel="View Income Breakdown"
+            />
+            <KpiCard
+              label="Total Expenses"
+              value={metrics.totalExpenses}
+              currencyCode={currencyCode}
+              variant="negative"
+              icon="arrowDown"
+              subtitle={expenseCount > 0 ? (expenseCount === 1 ? '1 transaction' : `${expenseCount} transactions`) : 'No expenses in range'}
+              trendString={expenseCount > 0 ? '-100% vs. last month' : undefined}
+              trendDirection="down"
+              actionLink="#/expenses"
+              actionAriaLabel="View Expense Breakdown"
+            />
+            <KpiCard
+              label="Net Cash Flow"
+              value={metrics.cashPosition}
+              currencyCode={currencyCode}
+              variant={metrics.cashPosition >= 0 ? 'positive' : 'negative'}
+              icon="wallet"
+              subtitle="Income - Expenses"
+              trendString={metrics.cashPosition < 0 ? '-100% vs. last month' : '+100% vs. last month'}
+              trendDirection={metrics.cashPosition < 0 ? 'down' : 'up'}
+              actionLink="#/cash-flow"
+              actionAriaLabel="View Cash Flow Analysis"
+            />
+            <KpiCard
+              label="Capital & Equity"
+              value={metrics.netEquity}
+              currencyCode={currencyCode}
+              variant="capital"
+              icon="capital"
+              subtitle={capitalCount > 0 ? `${capitalCount} movements` : 'No recorded movements'}
+              trendString="0% vs. last month"
+              trendDirection="neutral"
+              actionLink="#/capital"
+              actionAriaLabel="View Capital Structure"
+            />
+          </div>
 
-              {/* Cash Position */}
-              <div className="card stat-card stat-card--cash">
-                <div className="stat-card__head">
-                  <span className="stat-card__label">Cash Position</span>
-                  <Link to="/cash-flow" className="stat-card__action-link" title="View Cash Flow Analysis" aria-label="View Cash Flow Analysis">
-                    <Icon name="arrowUpRight" size={14} />
-                  </Link>
-                </div>
-                <span
-                  className={`stat-card__value ${metrics.cashPosition >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
-                  title={formatCurrency(metrics.cashPosition, currencyCode)}
-                >
-                  {formatCompactCurrency(metrics.cashPosition, currencyCode)}
-                </span>
-                <div className="stat-card__footer">
-                  <span className={`stat-card__badge ${metrics.cashPosition >= 0 ? 'stat-card__badge--ok' : 'stat-card__badge--danger'}`}>
-                    <span>{metrics.cashPosition >= 0 ? 'Positive Inflow' : 'Negative Outflow'}</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Income */}
-              <div className="card stat-card stat-card--income">
-                <div className="stat-card__head">
-                  <span className="stat-card__label">Income</span>
-                  <Link to="/income" className="stat-card__action-link" title="View Income Breakdown" aria-label="View Income Breakdown">
-                    <Icon name="arrowUpRight" size={14} />
-                  </Link>
-                </div>
-                <span
-                  className="stat-card__value stat-card__value--positive"
-                  title={formatCurrency(metrics.totalIncome, currencyCode)}
-                >
-                  {formatCompactCurrency(metrics.totalIncome, currencyCode)}
-                </span>
-                <div className="stat-card__footer">
-                  {metrics.totalIncome > 0 ? (
-                    <span className="stat-card__badge stat-card__badge--ok">
-                      <Icon name="trendingUp" size={12} />
-                      <span>{(metrics.marginRate * 100).toFixed(1)}% margin</span>
+          <div className="dash-grid">
+            {/* Main Left Column (Income vs Expenses Spline Curve Chart) */}
+            <div className="dash-main-col">
+              <div className="card dash-cf">
+                <div className="dash-cf__heading">
+                  <div>
+                    <h3 className="card__title">Income vs. Expenses</h3>
+                    <span className="dash-cf__subtitle">Monthly cash flow comparison over selected timeline</span>
+                  </div>
+                  <div className="dash-cf__actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {period === 'custom' && (
+                      <span className="date-range-plain-text">{periodLabel}</span>
+                    )}
+                    <span className="card__header-icon-action" aria-hidden="true" title="Chart display options">
+                      <Icon name="filter" size={14} />
                     </span>
-                  ) : (
-                    <span className="stat-card__subtext">No income in range</span>
-                  )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Expenses */}
-              <div className="card stat-card stat-card--expense">
-                <div className="stat-card__head">
-                  <span className="stat-card__label">Expenses</span>
-                  <Link to="/expenses" className="stat-card__action-link" title="View Expense Breakdown" aria-label="View Expense Breakdown">
-                    <Icon name="arrowUpRight" size={14} />
-                  </Link>
-                </div>
-                <span
-                  className="stat-card__value stat-card__value--negative"
-                  title={formatCurrency(metrics.totalExpenses, currencyCode)}
-                >
-                  {formatCompactCurrency(metrics.totalExpenses, currencyCode)}
-                </span>
-                <div className="stat-card__footer">
-                  {metrics.totalIncome > 0 ? (
-                    <span className={`stat-card__badge ${expenseRatio > 80 ? 'stat-card__badge--warn' : 'stat-card__badge--neutral'}`}>
-                      <span>{expenseRatio.toFixed(1)}% of income</span>
-                    </span>
-                  ) : (
-                    <span className="stat-card__subtext">Operating outflows</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Capital & Equity */}
-              <div className="card stat-card stat-card--capital">
-                <div className="stat-card__head">
-                  <span className="stat-card__label">Capital &amp; Equity</span>
-                  <Link to="/capital" className="stat-card__action-link" title="View Capital Structure" aria-label="View Capital Structure">
-                    <Icon name="arrowUpRight" size={14} />
-                  </Link>
-                </div>
-                <span
-                  className={`stat-card__value ${metrics.netEquity >= 0 ? 'stat-card__value--positive' : 'stat-card__value--negative'}`}
-                  title={formatCurrency(metrics.netEquity, currencyCode)}
-                >
-                  {formatCompactCurrency(metrics.netEquity, currencyCode)}
-                </span>
-                <div className="stat-card__footer">
-                  <span className="stat-card__subtext">
-                    {metrics.capitalAdded > 0 ? `${retention.toFixed(1)}% retained` : 'Equity & investments'}
-                  </span>
-                </div>
+                <CashFlowChart data={cashFlow} currencyCode={currencyCode} height="100%" minHeight={300} granularity={granularity} includeCapital />
               </div>
             </div>
 
-            {/* Income vs Expenses Spline Curve Chart */}
-            <div className="card dash-cf">
-              <div className="dash-cf__heading">
-                <div>
-                  <h3 className="card__title">Income vs. Expenses</h3>
-                  <span className="dash-cf__subtitle">Monthly cash flow comparison over selected timeline</span>
+            {/* Right Column (Category Breakdown & Financial Health) */}
+            <div className="dash-side-col">
+              {/* Category Breakdown Donut Card */}
+              <div className="card dash-donut-card">
+                <div className="card__head-flex">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 className="card__title" style={{ margin: 0 }}>Category Breakdown</h3>
+                    <div className="cf-tabs" role="tablist" aria-label="Category view" style={{ margin: 0 }}>
+                      <button
+                        type="button"
+                        className={`cf-tab-pill${categoryTab === 'expense' ? ' cf-tab-pill--active' : ''}`}
+                        onClick={() => setCategoryTab('expense')}
+                        role="tab"
+                        aria-selected={categoryTab === 'expense'}
+                      >
+                        Expenses
+                      </button>
+                      <button
+                        type="button"
+                        className={`cf-tab-pill${categoryTab === 'income' ? ' cf-tab-pill--active' : ''}`}
+                        onClick={() => setCategoryTab('income')}
+                        role="tab"
+                        aria-selected={categoryTab === 'income'}
+                      >
+                        Income
+                      </button>
+                    </div>
+                  </div>
+                  <Link to={categoryTab === 'expense' ? '/expenses' : '/income'} className="card__sublink">
+                    Breakdown →
+                  </Link>
                 </div>
-                <span className="date-range-plain-text">{periodLabel}</span>
+                <CategoryProgressList
+                  items={categoryTab === 'expense' ? expenseCategories : incomeCategories}
+                  currencyCode={currencyCode}
+                  emptyMessage={categoryTab === 'expense' ? 'No expenses recorded for this timeframe.' : 'No income recorded for this timeframe.'}
+                  maxItems={5}
+                  centerLabel={categoryTab === 'expense' ? 'Expenses' : 'Income'}
+                />
               </div>
 
-              <CashFlowChart data={chartData} currencyCode={currencyCode} height={310} granularity={granularity} />
+              {/* Financial Health & Efficiency Card */}
+              <div className="card dash-health-card">
+                <div className="card__head-flex" style={{ marginBottom: '8px' }}>
+                  <h3 className="card__title" style={{ margin: 0 }}>Financial Health</h3>
+                  <span className={`badge ${metrics.netProfit >= 0 ? 'badge--income' : 'badge--expense'}`}>
+                    {metrics.netProfit >= 0 ? 'Positive Margin' : 'Net Deficit'}
+                  </span>
+                </div>
+                <div className="dash-health-grid">
+                  <div className="dash-health-item">
+                    <span className="dash-health-item__label">Savings Rate</span>
+                    <span className={`dash-health-item__value ${savingsRate >= 0 ? 'cf-positive' : 'cf-negative'}`}>
+                      {savingsRate >= 0 ? `+${savingsRate.toFixed(1)}%` : `${savingsRate.toFixed(1)}%`}
+                    </span>
+                    <span className="dash-health-item__sub">Net income retention</span>
+                  </div>
+                  <div className="dash-health-item">
+                    <span className="dash-health-item__label">Coverage Ratio</span>
+                    <span className={`dash-health-item__value ${coverageRatio >= 1 ? 'cf-positive' : 'cf-negative'}`}>
+                      {coverageRatio >= 99 ? '∞' : `${coverageRatio.toFixed(2)}x`}
+                    </span>
+                    <span className="dash-health-item__sub">Inflows vs. outflows</span>
+                  </div>
+                  <div className="dash-health-item">
+                    <span className="dash-health-item__label">Daily Average Burn</span>
+                    <span className="dash-health-item__value cf-negative">
+                      {formatCurrency(dailyBurn, currencyCode)}
+                    </span>
+                    <span className="dash-health-item__sub">Per calendar day</span>
+                  </div>
+                  <div className="dash-health-item">
+                    <span className="dash-health-item__label">Top Spending</span>
+                    <span className="dash-health-item__value" title={topExpense ? topExpense.category_name : undefined}>
+                      {topExpense ? topExpense.category_name : 'None'}
+                    </span>
+                    <span className="dash-health-item__sub">
+                      {topExpense ? `${formatCurrency(topExpense.total, currencyCode)} (${Math.round((topExpense.total / (metrics.totalExpenses || 1)) * 100)}%)` : 'No expenses'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right Column (Recent Transactions, Expense Categories Donut) */}
-          <div className="dash-side-col">
-            {/* Recent Transactions Card */}
-            <div className="card dash-recent">
-              <div className="dash-recent__header">
-                <div>
-                  <h3 className="card__title">Recent Transactions</h3>
-                  <span className="dash-recent__subtitle">Latest logged movements</span>
-                </div>
+          {/* Recent Transactions Card (Wide Table Layout) */}
+          <Card>
+            <CardHeader
+              title="Recent Transactions"
+              subtitle={
+                recent && recent.total > 0
+                  ? `Showing latest ${recentTableData.length} of ${recent.total} transaction${recent.total === 1 ? '' : 's'}`
+                  : 'Latest logged movements'
+              }
+              action={
                 <Link to="/transactions" className="dash-view-all-link">
                   <span>View all</span>
                   <Icon name="chevronRight" size={14} />
                 </Link>
-              </div>
-
-              {recent && recent.transactions.length > 0 ? (
-                <ul className="dash-list">
-                  {recent.transactions.slice(0, 4).map((tx: Transaction) => {
-                    const isOutflow = tx.type === 'expense' || tx.type === 'withdrawal'
-                    const iconName = tx.type === 'income' ? 'arrowUp' : tx.type === 'capital' ? 'capital' : 'arrowDown'
-                    return (
-                      <li key={tx.id} className="dash-list__item">
-                        <div className={`dash-list__avatar dash-list__avatar--${tx.type}`} aria-hidden="true">
-                          <Icon name={iconName} size={15} />
-                        </div>
-                        <div className="dash-list__main">
-                          <span className="dash-list__desc" title={tx.description}>
-                            {tx.description}
-                          </span>
-                          <span className="dash-list__meta">
-                            {formatDate(parseISODate(tx.date), dateFormat)} · {tx.category_name}
-                          </span>
-                        </div>
-                        <div className="dash-list__right">
-                          <span className={`dash-list__amount ${isOutflow ? 'cf-negative' : 'cf-positive'}`}>
-                            {isOutflow ? '-' : '+'}{formatCurrency(tx.amount, currencyCode)}
-                          </span>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
+              }
+            />
+            <CardBody>
+              {loading && !recent ? (
+                <div className="spinner" style={{ margin: '24px auto' }} aria-label="Loading recent transactions" />
+              ) : recentTableData.length === 0 ? (
+                <EmptyState
+                  icon="transactions"
+                  title="No recent transactions"
+                  description="No transactions logged in this period."
+                />
               ) : (
-                <div className="dash-recent__empty-box">
-                  <Icon name="transactions" size={28} />
-                  <p>No transactions logged in this period.</p>
-                </div>
+                <TransactionTable
+                  columns={recentColumns}
+                  data={recentTableData}
+                  currencyCode={currencyCode}
+                  dateFormat={dateFormat}
+                  showBalanceColumn={false}
+                />
               )}
-            </div>
-
-            {/* Expense Categories Donut Card */}
-            <div className="card dash-donut-card">
-              <div className="card__head-flex">
-                <h3 className="card__title">Expense Categories</h3>
-                <Link to="/expenses" className="card__sublink">
-                  Breakdown →
-                </Link>
-              </div>
-              <CategoryProgressList
-                items={expenseCategories}
-                currencyCode={currencyCode}
-                emptyMessage="No expenses recorded for this timeframe."
-                maxItems={5}
-                centerLabel="Expenses"
-              />
-            </div>
-          </div>
-        </div>
+            </CardBody>
+          </Card>
+        </>
       ) : null}
 
     </div>

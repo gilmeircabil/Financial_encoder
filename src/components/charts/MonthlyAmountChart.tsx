@@ -1,16 +1,26 @@
 import { useMemo } from 'react'
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 import type { MonthlySummary } from '../../../electron/types/ipc'
-import { computeNiceTicks, trimTrailingEmptyMonthly } from '../../utils/chart'
-import { formatCompactCurrency, formatCurrency, toFiniteNumber } from '../../utils/currency'
+import {
+  computeNiceTicks,
+  trimTrailingEmptyMonthly,
+  MONTHLY_AMOUNT_CONFIG,
+  CHART_COLORS,
+  CHART_SPACING,
+  CHART_TYPOGRAPHY,
+} from '../../utils/chartTheme'
+import { formatCompactCurrency, toFiniteNumber } from '../../utils/currency'
+import ChartTooltip, { type ChartTooltipLabel } from './ChartTooltip'
+import ChartEmptyState from './ChartEmptyState'
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MONTHS_LONG = [
@@ -18,40 +28,18 @@ const MONTHS_LONG = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-type AmountKind = 'income' | 'expense' | 'capital' | 'withdrawal'
-
-interface KindConfig {
-  label: string
-  color: string
-  prefix: string
-  valueClass: string
+interface MonthlyChartDatum {
+  month: string
+  fullLabel: string
+  amount: number
 }
 
-const KIND_CONFIG: Record<AmountKind, KindConfig> = {
-  income: {
-    label: 'Income',
-    color: '#10b981',
-    prefix: '+',
-    valueClass: 'cf-positive',
-  },
-  expense: {
-    label: 'Expenses',
-    color: '#f59e0b',
-    prefix: '-',
-    valueClass: 'cf-negative',
-  },
-  capital: {
-    label: 'Capital Added',
-    color: '#7048e8',
-    prefix: '+',
-    valueClass: 'cf-positive',
-  },
-  withdrawal: {
-    label: 'Owner Withdrawals',
-    color: '#f97316',
-    prefix: '-',
-    valueClass: 'cf-negative',
-  },
+export interface MonthlyAmountChartProps {
+  data: MonthlySummary[]
+  kind: 'income' | 'expense' | 'capital' | 'withdrawal'
+  currencyCode: string
+  height?: number | `${number}%`
+  minHeight?: number
 }
 
 function formatLabel(monthKey: string): { month: string; fullLabel: string } {
@@ -62,66 +50,19 @@ function formatLabel(monthKey: string): { month: string; fullLabel: string } {
     return { month: monthKey, fullLabel: monthKey }
   }
   return {
-    month: `${MONTHS_SHORT[m - 1]} ${y}`,
+    month: MONTHS_SHORT[m - 1],
     fullLabel: `${MONTHS_LONG[m - 1]} ${y}`,
   }
 }
 
-interface MonthlyChartDatum {
-  month: string
-  fullLabel: string
-  amount: number
-}
-
-interface TooltipPayloadItem {
-  dataKey?: string | number
-  value?: number | string
-  payload?: MonthlyChartDatum
-}
-
-interface MonthlyTooltipProps {
-  active?: boolean
-  payload?: TooltipPayloadItem[]
-  currencyCode: string
-  kind: AmountKind
-}
-
-function MonthlyTooltip({ active, payload, currencyCode, kind }: MonthlyTooltipProps): React.JSX.Element | null {
-  if (!active || !payload || payload.length === 0) {
-    return null
-  }
-  const datum = payload[0]?.payload
-  if (!datum) {
-    return null
-  }
-  const config = KIND_CONFIG[kind]
-  const amount = toFiniteNumber(datum.amount)
-
-  return (
-    <div className="chart-tooltip">
-      <p className="chart-tooltip__title">{datum.fullLabel}</p>
-      <div className="chart-tooltip__row">
-        <span className="chart-tooltip__label">
-          <span className="chart-tooltip__swatch" style={{ background: config.color }} />
-          {config.label}
-        </span>
-        <span className={`chart-tooltip__value ${config.valueClass}`}>
-          {config.prefix}{formatCurrency(amount, currencyCode)}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-export interface MonthlyAmountChartProps {
-  data: MonthlySummary[]
-  kind: AmountKind
-  currencyCode: string
-  height?: number
-}
-
-function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyAmountChartProps): React.JSX.Element {
-  const config = KIND_CONFIG[kind]
+export function MonthlyAmountChart({
+  data,
+  kind,
+  currencyCode,
+  height = '100%',
+  minHeight = 240,
+}: MonthlyAmountChartProps): React.JSX.Element {
+  const config = MONTHLY_AMOUNT_CONFIG[kind]
 
   const chartData: MonthlyChartDatum[] = useMemo(() => {
     const raw = data.map((row) => {
@@ -132,22 +73,38 @@ function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyA
         amount: Math.max(0, toFiniteNumber(row[kind])),
       }
     })
-    return trimTrailingEmptyMonthly(raw)
+    return raw.length >= 12 ? raw : trimTrailingEmptyMonthly(raw)
   }, [data, kind])
 
   const hasMovement = chartData.some((datum) => datum.amount !== 0)
 
   const { domain: yDomain, ticks: niceTicks } = useMemo(() => {
-    const maxVal = Math.max(0, ...chartData.map((d) => d.amount))
+    const validAmounts = chartData
+      .map((d) => d.amount)
+      .filter((v) => Number.isFinite(v))
+    const maxVal = validAmounts.length > 0 ? Math.max(0, ...validAmounts) : 0
     return computeNiceTicks(0, maxVal)
   }, [chartData])
 
+  // Build series labels for tooltip
+  const seriesLabels = useMemo<ChartTooltipLabel[]>(() => [
+    {
+      dataKey: 'amount' as const,
+      label: config.label,
+      color: config.color,
+      valueClass: config.valueClass,
+      prefix: config.prefix,
+      indicatorType: 'swatch',
+    },
+  ], [config])
+
   if (chartData.length === 0 || !hasMovement) {
     return (
-      <div className="chart-empty chart-empty--cashflow" style={{ height }}>
-        <p className="chart-empty__title">No {config.label.toLowerCase()} recorded for this period.</p>
-        <p className="chart-empty__hint">Transactions will populate this monthly trend.</p>
-      </div>
+      <ChartEmptyState
+        height={height}
+        title={`No ${config.label.toLowerCase()} recorded for this period.`}
+        hint="Transactions will populate this monthly trend."
+      />
     )
   }
 
@@ -162,42 +119,62 @@ function MonthlyAmountChart({ data, kind, currencyCode, height = 240 }: MonthlyA
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={chartData} margin={{ top: 14, right: 16, left: 16, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            tickLine={false}
-            axisLine={{ stroke: 'var(--border)' }}
-            tickMargin={10}
-            minTickGap={20}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            tickLine={false}
-            axisLine={false}
-            width={68}
-            domain={yDomain}
-            ticks={niceTicks}
-            tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
-          />
-          <Tooltip
-            cursor={{ fill: 'var(--bg-card-hover)', opacity: 0.4 }}
-            content={<MonthlyTooltip currencyCode={currencyCode} kind={kind} />}
-          />
-          <Bar
-            dataKey="amount"
-            name={config.label}
-            fill={config.color}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={48}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )
+      <div className="cf-spline-chart-inner">
+        <ResponsiveContainer width="100%" height={height} minHeight={minHeight}>
+          <AreaChart data={chartData} margin={CHART_SPACING.margin}>
+            <defs>
+              <linearGradient id={`monthly-grad-${kind}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={config.color} stopOpacity={0.38} />
+                <stop offset="92%" stopColor={config.color} stopOpacity={0.01} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.gridLine} vertical={false} />
+            <ReferenceLine y={0} stroke="rgba(255, 255, 255, 0.15)" strokeDasharray="2 2" />
+            <XAxis
+              dataKey="month"
+              tick={{
+                fontSize: CHART_TYPOGRAPHY.axisTickFontSize,
+                fill: CHART_COLORS.textMuted,
+                fontFamily: CHART_TYPOGRAPHY.axisTickFontFamily,
+              }}
+              tickLine={false}
+              axisLine={{ stroke: CHART_COLORS.axisLine }}
+              tickMargin={10}
+              minTickGap={20}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{
+                fontSize: CHART_TYPOGRAPHY.axisTickFontSize,
+                fill: CHART_COLORS.textMuted,
+                fontFamily: CHART_TYPOGRAPHY.axisTickFontFamily,
+              }}
+              tickLine={false}
+              axisLine={false}
+              width={68}
+              domain={yDomain}
+              ticks={niceTicks}
+              tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
+            />
+            <Tooltip
+              cursor={{ stroke: 'rgba(255, 255, 255, 0.16)', strokeWidth: 1, strokeDasharray: '4 4' }}
+              content={<ChartTooltip currencyCode={currencyCode} seriesLabels={seriesLabels} />}
+            />
+            <Area
+              type="monotone"
+              dataKey="amount"
+              name={config.label}
+              stroke={config.color}
+              strokeWidth={2.5}
+              fill={`url(#monthly-grad-${kind})`}
+              dot={false}
+              activeDot={{ r: 5, fill: config.color, stroke: 'var(--bg-surface, #121217)', strokeWidth: 2 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+  </div>
+)
 }
 
 export default MonthlyAmountChart

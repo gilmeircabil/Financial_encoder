@@ -14,4 +14,4 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   { path: '/settings/danger', label: 'Danger zone', icon: 'shield' },
 ]
 
-export const DEFAULT_SETTINGS_PATH = '/settings/general'
+export const DEFAULT_SETTINGS_PATH = '/settings'

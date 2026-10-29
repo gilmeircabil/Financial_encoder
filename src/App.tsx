@@ -1,3 +1,4 @@
+
 import { Component, lazy, Suspense, useEffect, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -7,7 +8,6 @@ import { DateRangeProvider } from './contexts/DateRangeContext'
 import { api, ApiError } from './services/api'
 import { installGlobalErrorForwarding, logToMain } from './services/logger'
 import AppShell from './components/layout/AppShell'
-import { DEFAULT_SETTINGS_PATH } from './pages/Settings/settingsSections'
 import Dashboard from './pages/Dashboard/Dashboard'
 import IntroScreen from './components/ui/IntroScreen'
 import { AppLogo } from './components/ui/AppLogo'
@@ -20,11 +20,7 @@ const CashFlow = lazy(() => import('./pages/CashFlow/CashFlow'))
 const Reports = lazy(() => import('./pages/Reports/Reports'))
 const Import = lazy(() => import('./pages/Import/Import'))
 const Documents = lazy(() => import('./pages/Documents/Documents'))
-const SettingsGeneral = lazy(() => import('./pages/Settings/SettingsGeneral'))
-const SettingsAppearance = lazy(() => import('./pages/Settings/SettingsAppearance'))
-const SettingsBackups = lazy(() => import('./pages/Settings/SettingsBackups'))
-const SettingsAbout = lazy(() => import('./pages/Settings/SettingsAbout'))
-const SettingsDanger = lazy(() => import('./pages/Settings/SettingsDanger'))
+const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage'))
 
 interface ErrorBoundaryState {
   error: Error | null
@@ -160,12 +156,8 @@ function SystemContent(): React.JSX.Element {
           <Route path="/reports" element={<Reports />} />
           <Route path="/import" element={<Import />} />
           <Route path="/documents" element={<Documents />} />
-          <Route path="/settings" element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-          <Route path="/settings/general" element={<SettingsGeneral />} />
-          <Route path="/settings/appearance" element={<SettingsAppearance />} />
-          <Route path="/settings/backups" element={<SettingsBackups />} />
-          <Route path="/settings/about" element={<SettingsAbout />} />
-          <Route path="/settings/danger" element={<SettingsDanger />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/*" element={<Navigate to="/settings" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

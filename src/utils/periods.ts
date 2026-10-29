@@ -46,13 +46,13 @@ export function periodRange(key: PeriodKey, customFrom: string, customTo: string
   const now = new Date()
   switch (key) {
     case 'this-month':
-      return { date_from: startOfMonth(now), date_to: toISODate(now) }
+      return { date_from: startOfMonth(now), date_to: endOfMonth(now) }
     case 'last-3-months': {
       const from = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       return { date_from: startOfMonth(from), date_to: toISODate(now) }
     }
     case 'this-year':
-      return { date_from: `${now.getFullYear()}-01-01`, date_to: toISODate(now) }
+      return { date_from: `${now.getFullYear()}-01-01`, date_to: `${now.getFullYear()}-12-31` }
     case 'all':
       return {}
     case 'custom':

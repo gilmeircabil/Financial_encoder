@@ -1,15 +1,22 @@
 import LedgerPage from '../../components/ledger/LedgerPage'
+import { TransactionColumn } from '../../components/tables/TransactionTable'
+import type { Transaction } from '../../../electron/types/ipc'
+
+const expenseColumns: TransactionColumn[] = [
+  { key: 'date', label: 'Date', className: 'tx-cell-date' },
+  { key: 'description', label: 'Description', className: 'tx-cell-desc' },
+  { key: 'category', label: 'Category', className: 'tx-cell-cat' },
+  { key: 'amount', label: 'Amount', className: 'tx-table__amount' },
+]
 
 export default function Expenses(): React.JSX.Element {
   return (
     <LedgerPage
       type="expense"
-      pageClass="expenses-page"
       title="Expenses"
       description="Track, categorize, and analyze operating and personal expenditures."
-      addLabel="Add Expense"
       statLabel="Total Expenses"
-      statSubtext={(count) => `Across ${count} transactions`}
+      statSubtext={(count) => count === 1 ? '1 transaction' : `${count} transactions`}
       topCategoryLabel="Top Expense Category"
       categoriesTitle="Category Distribution"
       emptyCategoryMessage="No expense category breakdown available."
@@ -19,13 +26,21 @@ export default function Expenses(): React.JSX.Element {
         icon: 'expenses',
         title: 'No expense transactions found',
         description: 'Start logging your expenses to track spending over time.',
-        buttonText: '+ Add Expense',
       }}
-      amountPrefix="-"
-      amountClass="cf-negative"
       deleteTitle="Delete Expense Transaction"
       deleteSubject="expense record"
       exportSuccessMessage="Expense ledger exported to CSV!"
+      kpiIcon="arrowDown"
+      totalKpiVariant="negative"
+      tableColumns={expenseColumns}
+      transformRow={(tx: Transaction) => ({
+        id: tx.id,
+        date: tx.date,
+        description: tx.description,
+        amount: tx.amount,
+        type: 'expense',
+        category_name: tx.category_name,
+      })}
     />
   )
 }

@@ -1,77 +1,182 @@
 # Financial Encoder — User Guide
 
-Financial Encoder is a desktop app that keeps your finances on **your own
-computer**. Nothing is sent to the internet, and you do not need to install
-any developer tools.
+Financial Encoder is a modern desktop application that keeps your financial records entirely on **your own computer**. Nothing is sent to the internet, and you do not need to install any developer tools or manage cloud subscriptions.
 
-## 1. Install the application
+---
 
-1. Double-click `Financial-Encoder-Setup-1.0.0.exe`.
-2. Follow the installer (choose a folder or keep the default).
-3. Open **Financial Encoder** from the Start Menu (or the desktop shortcut).
+## Table of Contents
+1. [Installing & Opening](#1-installing--opening)
+2. [Navigation & Interface Overview](#2-navigation--interface-overview)
+3. [Dashboard](#3-dashboard)
+4. [Adding & Managing Transactions](#4-adding--managing-transactions)
+5. [Specialized Ledgers (Income, Expenses, Capital, Cash Flow)](#5-specialized-ledgers)
+6. [Reports & Exports](#6-reports--exports)
+7. [Importing Data (CSV / Excel)](#7-importing-data)
+8. [Backups & Portability](#8-backups--portability)
+9. [Keyboard Shortcuts](#9-keyboard-shortcuts)
+10. [Accessibility Features](#10-accessibility-features)
 
-There is no need to install Node.js, npm, or any other software.
+---
 
-## 2. Open Financial Encoder
+## 1. Installing & Opening
 
-- Launch it from the Start Menu. The app opens to the **Dashboard**.
-- Your data is kept safe in a separate data folder, not in the program folder,
-  so reinstalling or updating the app never deletes your records.
+### Installation
+1. Double-click `Financial-Encoder-Setup-1.0.13.exe` (or your platform installer).
+2. Follow the installer instructions (choose a destination folder or use default).
+3. Open **Financial Encoder** from the Start Menu or desktop shortcut.
 
-## 3. Add transactions
+### Data Location
+- Your data lives locally in `%APPDATA%\FinancialEncoder\` (Windows) or `~/Library/Application Support/FinancialEncoder/` (macOS).
+- Reinstalling or updating the app **never deletes** your financial records.
 
-- Use the **Income**, **Expenses**, **Capital** or **Cash Flow** page from the
-  left menu.
-- Click **Add transaction** (or the equivalent button on the page).
-- Fill in the **date**, **description**, **category**, **type** and **amount**.
-- Save. The figures update everywhere instantly.
+---
 
-## 4. Review the Dashboard
+## 2. Navigation & Interface Overview
 
-- The **Dashboard** shows your current balances, income and expenses over time,
-  and recent activity.
+The interface consists of a persistent **Top Bar** and a **Left Sidebar**:
 
-## 5. Generate reports
+### Top Bar
+- **Greeting & Date**: Time-aware greeting and formatted current date.
+- **Global Search**: Type to search across all transactions instantly.
+- **Theme Switcher**: One-click toggle between **Light**, **Dark**, and **System** mode.
+- **New Transaction (`Ctrl+N`)**: Quick dropdown button to create Income, Expense, Capital, Withdrawal, Asset, or Liability transactions.
 
-1. Open **Reports**.
-2. Choose a period (This Month, Last 3 Months, This Year, All Time, or Custom).
-3. Review the income statement, cash flow, capital, category breakdown and
-   monthly summary.
-4. Click **Export CSV**, **Export XLSX** or **Export PDF** to save a copy to
-   your computer.
+### Left Sidebar
+- 📊 **Dashboard** — Overview, KPI metrics, recent activity & category charts
+- 💰 **Income** — Income ledger, category breakdown & monthly trends
+- 💸 **Expenses** — Expense ledger, category breakdown & monthly trends
+- 🏦 **Capital** — Equity, capital contributions & owner withdrawals
+- 📈 **Cash Flow** — Inflow/outflow trajectory & coverage ratios
+- 📋 **Transactions** — Unified transaction list with filters, sorting & bulk actions
+- 📑 **Reports** — Period summaries, financial statements & exports
+- ⚙️ **Settings** — App settings, currency defaults, backups & theme options
 
-## 6. Import from Excel or CSV (optional)
+---
 
-1. Open **Import**.
-2. Click **Select file** and choose your `.csv` or `.xlsx` file.
-3. Check the suggested column mapping and the preview rows.
-4. Correct the mapping if needed, then confirm.
-5. Invalid rows are skipped and listed as warnings — nothing is saved without
-   your confirmation.
+## 3. Dashboard
 
-## 7. Backup your data
+The **Dashboard** provides a 3-column consolidated overview:
 
-1. Open **Settings → Backup & Restore**.
-2. Click **Create backup** to make a snapshot you can keep in the list, or
-   **Export backup…** to save a portable file such as
-   `FinancialEncoder-Backup-2026-09-16.febak` to a USB drive, an external
-   drive, or another folder.
+### Key Metrics (KPI Cards)
+- **Net Worth**: Total assets minus liabilities
+- **Monthly Net**: Income minus expenses for current period
+- **30-Day Cash Flow**: Rolling inflow vs outflow position
+- **Savings Rate**: Percentage of income retained
 
-## 8. Restore data on another computer
+### Charts & Recent Activity
+- **Cash Flow Trajectory**: Grouped bar chart comparing inflows and outflows over time with a net cash flow trendline.
+- **Category Progress**: Donut breakdown showing top expense or income categories.
+- **Recent Activity**: Quick view of the latest 5 transactions with direct edit/delete actions.
 
-1. Copy the `.febak` backup file to the other computer (for example via USB).
-2. Install Financial Encoder there.
-3. Open **Settings → Backup & Restore** and click **Restore from file…**.
-4. Choose the backup file. Financial Encoder checks it first and keeps a safety
-   copy of the current database before restoring.
+---
 
-> Each computer keeps its own database. Restoring a backup replaces that
-> computer's current data with the backup you selected.
+## 4. Adding & Managing Transactions
 
-## Notes
+### Adding a Transaction
+1. Click **+ New Transaction** in the top bar or press **`Ctrl+N`**.
+2. Select the transaction type: **Income**, **Expense**, **Capital Contribution**, **Owner Withdrawal**, **Asset**, or **Liability**.
+3. Fill in:
+   - **Date**: Select or type date (`YYYY-MM-DD`).
+   - **Description**: Vendor, client, or purpose name.
+   - **Category**: Select from dropdown or create a new category.
+   - **Amount**: Enter positive currency value.
+   - **Notes** *(optional)*: Additional details or invoice references.
+4. Save. Figures update across all ledgers instantly.
 
-- **Data stays local.** Your records live in
-  `C:\Users\<USER>\AppData\Roaming\FinancialEncoder\`.
-- **Back up regularly.** Backups are the only way to move your data to another
-  computer.
-- **Offline.** The core app does not need an internet connection.
+### Unified Transaction List (`/transactions`)
+- **Sortable Columns**: Click Date, Description, Amount, Type, or Category headers to sort.
+- **Row Selection**: Click checkboxes or press **`Space`** on a focused row.
+- **Bulk Delete**: Select multiple rows and click **Delete Selected** in the selection bar.
+- **Running Balance**: View cumulative balance position row-by-row.
+- **Filters**: Filter by date range presets (This Month, Last Month, Year to Date) or custom range.
+
+---
+
+## 5. Specialized Ledgers
+
+Each specialized ledger streamlines view for specific transaction types:
+
+### Income (`/income`)
+- Focuses purely on revenue and inflows.
+- Shows total gross income, average transaction size, and category distribution.
+
+### Expenses (`/expenses`)
+- Tracks operational costs and outflows.
+- Displays top spending categories and monthly expense trend bars.
+
+### Capital (`/capital`)
+- Split layout tracking **Equity**, **Capital Added**, and **Owner Withdrawals**.
+- Includes net equity balance card.
+
+### Cash Flow (`/cashflow`)
+- Measures liquidity and coverage ratio (`Inflows / Outflows`).
+- Granularity toggle: **Month**, **Week**, or **Day** step-lines.
+
+---
+
+## 6. Reports & Exports
+
+1. Open **Reports** from the sidebar.
+2. Choose your date period: **This Month**, **Last Month**, **This Quarter**, **This Year**, or **Custom**.
+3. Review:
+   - Income Statement
+   - Cash Flow Summary
+   - Category Breakdown
+4. Export:
+   - **CSV**: Raw spreadsheet export.
+   - **XLSX**: Multi-sheet formatted Excel workbook.
+   - **PDF**: Formatted printable statement.
+
+---
+
+## 7. Importing Data
+
+1. Open **Import** from the sidebar.
+2. Click **Select file** or drag & drop a `.csv` or `.xlsx` file.
+3. Review column mapping (e.g. map your CSV's "Date" column to Financial Encoder's "Date").
+4. Preview rows and check for invalid entries.
+5. Click **Import**. Invalid or skipped rows are listed in a warning summary.
+
+---
+
+## 8. Backups & Portability
+
+### Creating a Backup
+1. Go to **Settings → Backups**.
+2. Click **Create Backup** for an internal snapshot.
+3. Click **Export Backup file (`.febak`)** to save a portable file to a USB drive or cloud backup folder.
+
+### Restoring a Backup
+1. Go to **Settings → Backups**.
+2. Click **Restore from file…** and select your `.febak` file.
+3. The app verifies integrity and creates a safety snapshot of current data before restoring.
+
+---
+
+## 9. Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` | Open New Transaction menu |
+| `Ctrl+Shift+N` | New Income shortcut |
+| `Ctrl+Alt+N` | New Expense shortcut |
+| `/` | Focus search bar |
+| `Ctrl+E` | Export current report |
+| `Ctrl+F` | Open/close filters |
+| `Escape` | Close dialogs / clear active search |
+| `Tab` / `Shift+Tab` | Navigate interactive elements |
+| `Enter` / `Space` | Activate button or toggle row checkbox |
+
+---
+
+## 10. Accessibility Features
+
+Financial Encoder is built with **Accessibility First** principles compliant with WCAG 2.1 AA standards:
+- **Keyboard Navigable**: Every table, dialog, form, and chart legend can be operated via keyboard alone.
+- **High Contrast**: Theme colors strictly meet 4.5:1 text-to-background contrast requirements.
+- **Screen Reader Support**: All icons carry `aria-hidden="true"`, buttons carry descriptive `aria-label` tags, and KPI tiles use `role="region"`.
+- **Automated Regression Testing**: Every build passes `axe-core` accessibility checks.
+
+---
+
+*Financial Encoder v1.0.13 — Privacy-focused, local-first financial management.*

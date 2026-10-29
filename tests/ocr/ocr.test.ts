@@ -35,7 +35,7 @@ function tempFile(name: string): string {
 }
 
 async function writePdf(file: string, lines: string[]): Promise<void> {
-  const doc = new PDFDocument()
+  const doc = new PDFDocument({ compress: false })
   const stream = fs.createWriteStream(file)
   doc.pipe(stream)
   for (const line of lines) {

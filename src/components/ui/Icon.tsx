@@ -41,9 +41,12 @@ export type IconName =
   | 'chevronDown'
   | 'chevronRight'
   | 'tag'
+  | 'star'
+  | 'scale'
   | 'fileSpreadsheet'
   | 'trash'
   | 'edit'
+  | 'user'
 
 const PATHS: Record<IconName, ReactNode> = {
   dashboard: (
@@ -303,6 +306,17 @@ const PATHS: Record<IconName, ReactNode> = {
   tag: (
     <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z M7 7h.01" />
   ),
+  star: (
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  ),
+  scale: (
+    <>
+      <path d="M12 3v18" />
+      <path d="M6 7l6-2 6 2" />
+      <path d="M6 7v3a3 3 0 0 0 6 0V7" />
+      <path d="M12 7v3a3 3 0 0 0 6 0V7" />
+    </>
+  ),
   fileSpreadsheet: (
     <>
       <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
@@ -326,6 +340,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
       <path d="m15 5 4 4" />
+    </>
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M6 20v-1a6 6 0 0 1 12 0v1" />
     </>
   ),
 }

@@ -129,7 +129,6 @@ function Import(): React.JSX.Element {
     <div className="page import-page">
       <PageHeader
         title="Import Data"
-        description="Ingest transactions from bank CSV statements or Excel spreadsheets into your ledger."
         actions={
           !preview ? (
             <button type="button" className="btn btn--primary" onClick={pickFile} disabled={picking}>

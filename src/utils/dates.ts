@@ -12,13 +12,14 @@ export function formatDate(date: Date, format: string): string {
   const tokens: Record<string, string> = {
     YYYY: String(year),
     MM: pad(month),
+    M: String(month),
     MMM: date.toLocaleString(undefined, { month: 'short' }),
     MMMM: date.toLocaleString(undefined, { month: 'long' }),
     DD: pad(day),
     D: String(day),
   }
 
-  return format.replace(/YYYY|MMMM|MMM|MM|DD|D/g, (token) => tokens[token] ?? token)
+  return format.replace(/YYYY|MMMM|MMM|MM|M|DD|D/g, (token) => tokens[token] ?? token)
 }
 
 /** Returns today's date formatted according to the configured format. */

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import SettingsPage from './SettingsPage'
 import SettingsSection from '../../components/ui/SettingsSection'
-import ConfirmModal from '../../components/ui/ConfirmModal'
+import { ConfirmModal } from '../../components/ui/Modal'
 import { Icon } from '../../components/ui/Icon'
 import { logToMain } from '../../services/logger'
 import { api, ApiError } from '../../services/api'
@@ -164,85 +163,83 @@ function SettingsBackups(): React.JSX.Element {
   ) : null
 
   return (
-    <SettingsPage description="Create snapshots to protect your data, restore from a backup file, or export one to another computer.">
-      <div className="settings-grid">
-        <SettingsSection
-          id="s-backups"
-          icon="archive"
-          title="Backup &amp; Restore"
-          description="Snapshots of your local database. Export a backup and restore it on any computer running Acorn. Restoring replaces the current data."
-          actions={
-            <>
-              <button type="button" className="btn btn--secondary btn--sm" onClick={() => void exportBackup()} disabled={busyAction !== null}>
-                {busyAction === 'export' ? 'Exporting\u2026' : 'Export'}
-              </button>
-              <button type="button" className="btn btn--secondary btn--sm" onClick={() => setPendingConfirm({ kind: 'import' })} disabled={busyAction !== null}>
-                {busyAction === 'import' ? 'Restoring\u2026' : 'Restore'}
-              </button>
-              <button type="button" className="btn btn--primary btn--sm" onClick={createBackup} disabled={busyAction !== null}>
-                {busyAction === 'create' ? 'Creating\u2026' : 'Create backup'}
-              </button>
-            </>
-          }
-        >
-          {backupNotice ? (
-            <div role="status" className={`notice notice--${backupNotice.kind}`}>
-              {backupNotice.text}
-            </div>
-          ) : null}
+    <>
+      <SettingsSection
+        id="s-backups"
+        icon="archive"
+        title="Backup &amp; Restore"
+        description="Snapshots of your local database. Export a backup and restore it on any computer running Acorn. Restoring replaces the current data."
+        actions={
+          <>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => void exportBackup()} disabled={busyAction !== null}>
+              {busyAction === 'export' ? 'Exporting\u2026' : 'Export'}
+            </button>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => setPendingConfirm({ kind: 'import' })} disabled={busyAction !== null}>
+              {busyAction === 'import' ? 'Restoring\u2026' : 'Restore'}
+            </button>
+            <button type="button" className="btn btn--primary btn--sm" onClick={createBackup} disabled={busyAction !== null}>
+              {busyAction === 'create' ? 'Creating\u2026' : 'Create backup'}
+            </button>
+          </>
+        }
+      >
+        {backupNotice ? (
+          <div role="status" className={`notice notice--${backupNotice.kind}`}>
+            {backupNotice.text}
+          </div>
+        ) : null}
 
-          {backupLoading && backups.length === 0 ? (
-            <div className="spinner" style={{ margin: '16px auto' }} aria-label="Loading backups" />
-          ) : backups.length === 0 ? (
-            <div className="settings-empty">
-              <Icon name="archive" size={32} />
-              <p>No backups yet. Create one to protect your data.</p>
-            </div>
-          ) : (
-            <div className="tx-table-wrap">
-              <table className="tx-table">
-                <thead>
-                  <tr>
-                    <th>Created</th>
-                    <th>Filename</th>
-                    <th className="tx-table__amount">Size</th>
-                    <th className="tx-table__amount">Actions</th>
+        {backupLoading && backups.length === 0 ? (
+          <div className="spinner" style={{ margin: '16px auto' }} aria-label="Loading backups" />
+        ) : backups.length === 0 ? (
+          <div className="settings-empty">
+            <Icon name="archive" size={32} />
+            <p>No backups yet. Create one to protect your data.</p>
+          </div>
+        ) : (
+          <div className="tx-table-wrap">
+            <table className="tx-table">
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Filename</th>
+                  <th className="tx-table__amount">Size</th>
+                  <th className="tx-table__amount">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {backups.map((record) => (
+                  <tr key={record.id}>
+                    <td title={new Date(record.created_at).toLocaleString()}>{timeAgo(record.created_at)}</td>
+                    <td>{record.filename}</td>
+                    <td className="tx-table__amount">{formatBytes(record.size_bytes)}</td>
+                    <td className="tx-table__amount">
+                      <span className="table-actions">
+                        <button
+                          type="button"
+                          className="btn btn--small btn--primary"
+                          onClick={() => setPendingConfirm({ kind: 'restore', record })}
+                          disabled={busyAction !== null}
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--small btn--danger"
+                          onClick={() => setPendingConfirm({ kind: 'delete', record })}
+                          disabled={busyAction !== null}
+                        >
+                          Delete
+                        </button>
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {backups.map((record) => (
-                    <tr key={record.id}>
-                      <td title={new Date(record.created_at).toLocaleString()}>{timeAgo(record.created_at)}</td>
-                      <td>{record.filename}</td>
-                      <td className="tx-table__amount">{formatBytes(record.size_bytes)}</td>
-                      <td className="tx-table__amount">
-                        <span className="table-actions">
-                          <button
-                            type="button"
-                            className="btn btn--small btn--primary"
-                            onClick={() => setPendingConfirm({ kind: 'restore', record })}
-                            disabled={busyAction !== null}
-                          >
-                            Restore
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn--small btn--danger"
-                            onClick={() => setPendingConfirm({ kind: 'delete', record })}
-                            disabled={busyAction !== null}
-                          >
-                            Delete
-                          </button>
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SettingsSection>
-      </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SettingsSection>
 
       {pendingConfirm ? (
         <ConfirmModal
@@ -250,13 +247,13 @@ function SettingsBackups(): React.JSX.Element {
           title={confirmTitle}
           message={confirmMessage}
           confirmLabel={confirmLabel}
-          danger={pendingConfirm?.kind === 'delete'}
+          variant={pendingConfirm?.kind === 'delete' ? 'danger' : 'default'}
           busy={busyAction !== null}
           onConfirm={confirmPendingAction}
-          onCancel={() => setPendingConfirm(null)}
+          onClose={() => setPendingConfirm(null)}
         />
       ) : null}
-    </SettingsPage>
+    </>
   )
 }
 

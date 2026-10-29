@@ -124,5 +124,37 @@ describe('finance module', () => {
       expect(result.cashPosition).toBe(18_775_807)
       expect(Number((result.marginRate * 100).toFixed(1))).toBe(40.1)
     })
+
+    it('reconciles user real-world figures: ₱20K revenue, ₱23.278M expense, -₱23.258M net loss', () => {
+      const userNumbers = {
+        income: 20_000,
+        expense: 23_278_097,
+        capital: 0,
+        withdrawal: 0,
+      }
+      const metrics = computeFinance(userNumbers)
+      expect(metrics.totalIncome).toBe(20_000)
+      expect(metrics.totalExpenses).toBe(23_278_097)
+      expect(metrics.netProfit).toBe(-23_258_097)
+      expect(metrics.cashPosition).toBe(-23_258_097)
+      expect(metrics.netEquity).toBe(0)
+      expect(metrics.marginRate).toBe(-23_258_097 / 20_000)
+    })
+
+    it('verifies that assets and liabilities are excluded from operating income and expenses', () => {
+      const txsWithBalanceSheet = [
+        { type: 'income', amount: 20_000 },
+        { type: 'expense', amount: 5_000 },
+        { type: 'asset', amount: 50_000 },
+        { type: 'liability', amount: 30_000 },
+      ]
+      const metrics = computeFinanceFromTransactions(txsWithBalanceSheet)
+      // Operating net profit must remain only income - expenses
+      expect(metrics.totalIncome).toBe(20_000)
+      expect(metrics.totalExpenses).toBe(5_000)
+      expect(metrics.netProfit).toBe(15_000)
+      // Operating margin must only use income & expense
+      expect(metrics.marginRate).toBe(0.75)
+    })
   })
 })

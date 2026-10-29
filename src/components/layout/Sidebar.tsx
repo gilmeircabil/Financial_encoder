@@ -4,12 +4,7 @@ import { Icon } from '../ui/Icon'
 import { AppLogo } from '../ui/AppLogo'
 import { useSettings } from '../../contexts/SettingsContext'
 
-interface SidebarProps {
-  onQuickAddIncome?: () => void
-  onQuickAddExpense?: () => void
-}
-
-function Sidebar({ onQuickAddIncome, onQuickAddExpense }: SidebarProps): React.JSX.Element {
+function Sidebar(): React.JSX.Element {
   const { settings } = useSettings()
   const appName = settings?.appName || 'Acorn'
 
@@ -24,31 +19,6 @@ function Sidebar({ onQuickAddIncome, onQuickAddExpense }: SidebarProps): React.J
           <span className="sidebar__version-tag">LOCAL VAULT</span>
         </div>
       </div>
-
-      {(onQuickAddIncome || onQuickAddExpense) ? (
-        <div className="sidebar__quick-pills">
-          {onQuickAddIncome ? (
-            <button
-              type="button"
-              className="sidebar__quick-pill"
-              onClick={onQuickAddIncome}
-            >
-              <Icon name="plus" size={14} />
-              <span>Add income</span>
-            </button>
-          ) : null}
-          {onQuickAddExpense ? (
-            <button
-              type="button"
-              className="sidebar__quick-pill"
-              onClick={onQuickAddExpense}
-            >
-              <Icon name="plus" size={14} />
-              <span>Add expense</span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
 
       <div className="sidebar__sections">
         {NAV_SECTIONS.map((section) => (
