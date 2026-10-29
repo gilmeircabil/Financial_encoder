@@ -266,11 +266,29 @@
 .topbar__search-input {
   flex: 1;
   min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
   color: var(--text);
   font-size: var(--text-sm);
+  appearance: none;
+  -webkit-appearance: none;
+
+  &:focus,
+  &:focus-visible {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  &::-webkit-search-decoration,
+  &::-webkit-search-cancel-button,
+  &::-webkit-search-results-button,
+  &::-webkit-search-results-decoration {
+    display: none;
+    -webkit-appearance: none;
+  }
 }
 
 .topbar__search-clear {
