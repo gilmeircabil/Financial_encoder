@@ -74,7 +74,7 @@ export const CHART_COLORS: ChartColors = {
   textMuted: 'var(--text-muted)',
   tooltipBackground: 'var(--bg-surface)',
   tooltipBorder: 'var(--border-strong)',
-  gridLine: 'rgba(255, 255, 255, 0.06)',
+  gridLine: 'var(--border)',
   axisLine: 'var(--border)',
 }
 

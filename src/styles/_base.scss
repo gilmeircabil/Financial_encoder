@@ -65,9 +65,16 @@ a {
   text-decoration: none;
 }
 
-/* Universal hover removal for minimal stillness */
-*:hover {
-  transform: none !important;
+/* Respect user accessibility preference for reduced motion while maintaining tactile UI */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Number alignment for financial values */

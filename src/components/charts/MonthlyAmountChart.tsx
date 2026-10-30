@@ -129,7 +129,7 @@ export function MonthlyAmountChart({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.gridLine} vertical={false} />
-            <ReferenceLine y={0} stroke="rgba(255, 255, 255, 0.15)" strokeDasharray="2 2" />
+            <ReferenceLine y={0} stroke={CHART_COLORS.borderStrong} strokeDasharray="2 2" />
             <XAxis
               dataKey="month"
               tick={{
@@ -157,7 +157,7 @@ export function MonthlyAmountChart({
               tickFormatter={(value: number) => formatCompactCurrency(value, currencyCode)}
             />
             <Tooltip
-              cursor={{ stroke: 'rgba(255, 255, 255, 0.16)', strokeWidth: 1, strokeDasharray: '4 4' }}
+              cursor={{ stroke: CHART_COLORS.borderStrong, strokeWidth: 1, strokeDasharray: '4 4' }}
               content={<ChartTooltip currencyCode={currencyCode} seriesLabels={seriesLabels} />}
             />
             <Area
